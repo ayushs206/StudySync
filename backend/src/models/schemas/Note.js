@@ -6,4 +6,4 @@ const NotesSchema = new Schema({
     user:{type:Schema.Types.ObjectId, ref:'User', required:true}
 },{timestamps: true});
 
-export const Notes = model('Note', NotesSchema);
+export const Note = mongoose.model.Note||model('Note', NotesSchema);

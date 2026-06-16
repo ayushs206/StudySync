@@ -6,6 +6,6 @@ const SubjectSchema = new Schema({
     user:{type:Schema.Types.ObjectId, ref:'User', required:true}
 },{timestamps: true});
 
-export const Subject = model('Subject', SubjectSchema);
+export const Subject = mongoose.model.Subject||model('Subject', SubjectSchema);
 
 

@@ -1,12 +1,12 @@
 import mongoose,{ Schema,model } from 'mongoose';
 import bcrypt from 'bcrypt';
-import jwt from 'jwtwebtoken';
+import jwt from 'jsonwebtoken';
 
 const UserSchema=new Schema({
     first_name: { type: String, required: true },
     last_name: { type: String, required: false },
     username: { type: String, required: true, unique: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true, match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'] },
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     year_of_study: { type: Number, required: false },
@@ -42,13 +42,13 @@ UserSchema.methods.generateRefreshToken = function(){
     );
 };
 
-UserSchema.methods.emailVerificationToken = function () {
+UserSchema.methods.emailVerifyToken = function () {
     return jwt.sign(
         { id: this._id },
         process.env.JWT_EMAIL_SECRET,
         { expiresIn: process.env.JWT_EMAIL_EXPIRES_IN || '5m' }
     );
-}
+};
 
 UserSchema.methods.passwordResetToken = function () {
     return jwt.sign(
@@ -57,7 +57,8 @@ UserSchema.methods.passwordResetToken = function () {
         { expiresIn: process.env.JWT_PASSWORD_RESET_EXPIRES_IN || '15m' }
     );
 }
-export const User = model('User', UserSchema);
+export const User = mongoose.model.User||model('User', UserSchema);
+
 
 
 
