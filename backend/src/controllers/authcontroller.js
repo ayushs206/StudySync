@@ -1,8 +1,8 @@
-import { User } from '../models/user.model.js';
+import { User } from '../models/User.js';
 
 import { updateUserSchema } from '../validators/user.validator.js';
 
-import { sendEmailVerification, sendPasswordResetEmail } from '../services/email.js';
+import { sendEmailVerification as sendEmailVerificationMail, sendPasswordResetEmail as sendPasswordResetEmailMail } from '../services/email.js';
 
 
 export const register = async (req, res) => {
@@ -31,7 +31,7 @@ export const register = async (req, res) => {
 
         const emailToken = newUser.emailVerifyToken();
         try {
-            await sendEmailVerification(newUser.email, emailToken);
+            await sendEmailVerificationMail(newUser.email, emailToken);
         } catch (err) {
             console.error('Failed to send verification email:', err);
         }
@@ -175,7 +175,7 @@ export const sendEmailVerification = async (req, res) => {
         const emailToken = user.emailVerifyToken();
 
         try {
-            await sendEmailVerification(user.email, emailToken);
+            await sendEmailVerificationMail(user.email, emailToken);
         } catch (err) {
             console.error('Failed to send verification email:', err);
             return res.status(500).json({ error: 'Failed to send verification email' });
@@ -238,7 +238,7 @@ export const sendPasswordResetEmail = async (req, res) => {
         const resetToken = user.passwordResetToken();
 
         try {
-            await sendPasswordResetEmail(user.email, resetToken);
+            await sendPasswordResetEmailMail(user.email, resetToken);
         } catch (err) {
             console.error('Failed to send password reset email:', err);
             return res.status(500).json({ error: 'Failed to send password reset email' });
