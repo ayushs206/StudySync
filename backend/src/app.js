@@ -1,6 +1,5 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import authRouter from '../routes/auth.routes.js';
 
 const app = express();
 app.set('trust proxy', true);
@@ -15,11 +14,13 @@ app.use(limiter);
 import corsMiddleware from './middlewares/cors.js';
 app.use(corsMiddleware);
 
-// Define your routes here
-app.use('/auth',authRouter);
-app.get('/', (req, res) => {
+app.get('/api/status', (req, res) => {
     res.send('Hello, World!');
 });
+
+import authRouter from '../routes/auth.routes.js';
+
+app.use('/auth', authRouter);
 
 app.use((err, req, res, next) => {
     const statusCode = err?.statusCode || 500;
