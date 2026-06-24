@@ -3,7 +3,7 @@ import {verifyJWT} from '../middlewares/auth.js'
 import {register,login,getUserInfo,UpdateUserInfo,sendEmailVerification,verifyEmail,sendPasswordResetEmail,resetPassword,logout} from '../controllers/authcontroller.js'
 import {limiter} from '../middlewares/limiter.js'
 import { registerSchema , loginSchema} from '../validators/user.validator.js';
-import validate from '../middlewares/validator.js'
+import {validate} from '../middlewares/validator.js'
 
 const router=Router();
 
