@@ -8,18 +8,18 @@ import { sendEmailVerification as sendEmailVerificationMail, sendPasswordResetEm
 export const register = async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
-            return res.status(400).json({ error: 'Request body is empty' });
+            return res.status(400).json({ message: 'Fill the fields' });
         }
 
         const { first_name, last_name, email, password, username, year_of_study } = req.body;
         if (typeof email !== 'string' || typeof password !== 'string') {
-            return res.status(400).json({ error: 'Invalid input' });
+            return res.status(400).json({ message: 'Invalid input' });
         }
 
         const existingUser = await User.findOne({ $or: [{ email }, { username }] });   // req.body.email should be asserted as string before it touches any query
 
         if (existingUser) {
-            return res.status(400).json({ error: 'User with this email or username already exists' });
+            return res.status(400).json({ message: 'User already exists.Please login' });
         }
 
         const newUser = new User(
@@ -55,31 +55,31 @@ export const register = async (req, res) => {
     } catch (err) {
         console.error(err);
         if (err.code === 11000) {
-            return res.status(400).json({ error: 'Registration failed' });
+            return res.status(400).json({ message: 'Registration failed' });
         }
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
 export const login = async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
-            return res.status(400).json({ error: 'Request body is empty' });
+            return res.status(400).json({ message: 'Request body is empty' });
         }
 
         const { email, password } = req.body;
         if (!email || !password) {
-            return res.status(400).json({ error: "Input email and password" });
+            return res.status(400).json({ message: "Input email and password" });
         }
         const user = await User.findOne({ email }).select('+password');
 
         if (!user) {
-            return res.status(400).json({ error: "User not found" })
+            return res.status(400).json({ message: "Invalid credentials" })
         }
 
         const isMatch = await user.comparePassword(password)
         if (!isMatch) {
-            return res.status(400).json({ error: "invalid credentials" })
+            return res.status(400).json({ message: "invalid credentials" })
         }
 
         const accessToken = user.generateAccessToken();
@@ -99,7 +99,7 @@ export const login = async (req, res) => {
         return res.json({ accessToken, user: user.toSafeObject() });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -109,7 +109,7 @@ export const login = async (req, res) => {
 //         const refreshToken = req.cookies?.refreshToken;
 
 //         if (!refreshToken) {
-//             return res.status(401).json({ error: 'Unauthorized' });
+//             return res.status(401).json({ message: 'Unauthorized' });
 //         }
 
 //         const user = await User.findOne({
@@ -117,7 +117,7 @@ export const login = async (req, res) => {
 //         });
 
 //         if (!user) {
-//             return res.status(401).json({ error: 'Invalid' });
+//             return res.status(401).json({ message: 'Invalid' });
 //         }
 //         user.refreshTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 //         await user.save();
@@ -128,7 +128,7 @@ export const login = async (req, res) => {
 
 //     } catch (err) {
 //         console.error(err);
-//         return res.status(500).json({ error: 'Internal server error' });
+//         return res.status(500).json({ message: 'Internal server error' });
 //     }
 // };
 
@@ -136,7 +136,7 @@ export const getUserInfo = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ error: 'Invalid' });
+            return res.status(404).json({ message: 'Invalid' });
         }
         return res.json({
             user: user.toSafeObject(),
@@ -144,7 +144,7 @@ export const getUserInfo = async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -155,15 +155,15 @@ export const UpdateUserInfo = async (req, res) => {
         const result = updateUserSchema.safeParse(req.body);
 
         if (!result.success) {
-            return res.status(400).json({ error: result.error.flatten() });
+            return res.status(400).json({ message: result.error.flatten() });
         }
 
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ message: 'Invalid credentials' });
         }
         if (Object.keys(result.data).length === 0) {
-            return res.status(400).json({ error: 'No fields provided to update' });
+            return res.status(400).json({ message: 'No fields provided to update' });
         }
 
         const { first_name, last_name, year_of_study } = result.data;
@@ -177,7 +177,7 @@ export const UpdateUserInfo = async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -185,11 +185,11 @@ export const sendEmailVerification = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ error: 'Invalid' });
+            return res.status(404).json({ message: 'Invalid credentials' });
         }
 
         if (user.isVerified) {
-            return res.status(400).json({ error: 'Email already verified' });
+            return res.status(400).json({ message: 'Email verified' });
         }
 
         const emailToken = user.emailVerifyToken();
@@ -198,13 +198,13 @@ export const sendEmailVerification = async (req, res) => {
             await sendEmailVerificationMail(user.email, emailToken);
         } catch (err) {
             console.error('Failed to send verification email:', err);
-            return res.status(500).json({ error: 'Failed to send verification email' });
+            return res.status(500).json({ message: 'Failed to send verification email' });
         }
 
         return res.json({ message: 'Verification email sent' });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -213,21 +213,21 @@ export const verifyEmail = async (req, res) => {
 
         const token = req.query?.token;
         if (!token) {
-            return res.status(400).json({ error: 'Token is required' });
+            return res.status(400).json({ message: 'Token is required' });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_EMAIL_SECRET);
         if (!decoded || !decoded.id) {
-            return res.status(400).json({ error: 'Invalid token' });
+            return res.status(400).json({ message: 'Invalid token' });
         }
 
         const user = await User.findById(decoded.id);
         if (!user) {
-            return res.status(404).json({ error: 'Invalid' });
+            return res.status(404).json({ message: 'Invalid' });
         }
 
         if (user.isVerified) {
-            return res.status(400).json({ error: 'Email already verified' });
+            return res.status(400).json({ message: 'Email already verified' });
         }
 
         user.isVerified = true;
@@ -237,9 +237,9 @@ export const verifyEmail = async (req, res) => {
     } catch (err) {
         console.error(err);
         if (err.name === 'TokenExpiredError') {
-            return res.status(400).json({ error: 'Token expired' });
+            return res.status(400).json({ message: 'Token expired' });
         }
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 
 };
@@ -247,17 +247,17 @@ export const verifyEmail = async (req, res) => {
 export const sendPasswordResetEmail = async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
-            return res.status(400).json({ error: 'Request body is empty' });
+            return res.status(400).json({ message: 'Please enter the fields required' });
         }
 
         const { email } = req.body;
         if (!email) {
-            return res.status(400).json({ error: 'Email is required' });
+            return res.status(400).json({ message: 'Email is required' });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ error: 'Invalid' });
+            return res.status(404).json({ message: 'Invalid credentials' });
         }
 
         const resetToken = user.passwordResetToken();
@@ -266,13 +266,13 @@ export const sendPasswordResetEmail = async (req, res) => {
             await sendPasswordResetEmailMail(user.email, resetToken);
         } catch (err) {
             console.error('Failed to send password reset email:', err);
-            return res.status(500).json({ error: 'Failed to send password reset email' });
+            return res.status(500).json({ message: 'Failed to send password reset email' });
         }
 
         return res.status(200).json({ message: 'Password reset email sent' });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 
 };
@@ -281,26 +281,26 @@ export const resetPassword = async (req, res) => {
     try {
         const token = req.query?.token;
         if (!token) {
-            return res.status(400).json({ error: 'Token is required' });
+            return res.status(400).json({ message: 'Token is required' });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_PASSWORD_RESET_SECRET);
         if (!decoded || !decoded.id) {
-            return res.status(400).json({ error: 'Invalid token' });
+            return res.status(400).json({ message: 'Invalid token' });
         }
 
         const user = await User.findById(decoded.id);
         if (!user) {
-            return res.status(404).json({ error: 'Invalid' });
+            return res.status(404).json({ message: 'Invalid' });
         }
 
         if (!req.body || Object.keys(req.body).length === 0) {
-            return res.status(400).json({ error: 'Request body is empty' });
+            return res.status(400).json({ message: 'Request body is empty' });
         }
 
         const { new_password } = req.body;
         if (!new_password) {
-            return res.status(400).json({ error: 'New password is required' });
+            return res.status(400).json({ message: 'New password is required' });
         }
 
         user.password = new_password;
@@ -309,7 +309,7 @@ export const resetPassword = async (req, res) => {
         return res.status(200).json({ message: 'Password reset successfully' });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -327,7 +327,7 @@ export const logout = async (req, res) => {
 
         const userId = req.user?.id;
         if (!userId) {
-            return res.status(400).json({ error: 'User not authenticated' });
+            return res.status(400).json({ message: 'User not authenticated' });
         }
 
         const user = await User.findById(userId);
@@ -339,7 +339,7 @@ export const logout = async (req, res) => {
         return res.status(200).json({ message: 'Logged out successfully' });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
