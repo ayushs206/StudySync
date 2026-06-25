@@ -13,7 +13,7 @@ export const createTask = async (req, res) => {
 
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'Invalid credentials' });
         }
 
         if (!title || title.trim() === '') {
@@ -87,7 +87,7 @@ export const getTaskById = async (req, res) => {
 
         const task = await Task.findOne({ _id: req.params.id, user: req.user.id });
         if (!task) {
-            return res.status(404).json({ message: 'Task not found' });
+            return res.status(404).json({ message: 'Task invalid' });
         }
         res.status(200).json({ task });
     } catch (error) {
@@ -105,7 +105,7 @@ export const deleteTask = async (req, res) => {
 
         const task = await Task.findOneAndDelete({ _id: req.params.id, user: req.user.id });
         if (!task) {
-            return res.status(404).json({ message: 'Task not found' });
+            return res.status(404).json({ message: 'Task invalid' });
         }
 
         res.status(200).json({ message: 'Task deleted successfully' });

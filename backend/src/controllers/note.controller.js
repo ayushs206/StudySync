@@ -5,10 +5,6 @@ import { Note } from '../models/Note.js';
 
 export const createNote = async (req, res) => {
     try {
-        if (!req.body) {
-            return res.status(400).json({ message: 'Request body is empty' });
-        }
-
         let { title, content } = req.body;
         if (!title || title.trim() === '') {
             return res.status(400).json({ message: 'Title is required' });
@@ -20,7 +16,7 @@ export const createNote = async (req, res) => {
 
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(400).json({ message: 'Invalid credentials' });
         }
 
         const note = await Note.create({
@@ -40,7 +36,7 @@ export const getNotes = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ message: 'Invalid credentials' });
         }
 
         const notes = await Note.find({ user: user._id }).sort({ createdAt: -1 });
@@ -60,7 +56,7 @@ export const getNoteById = async (req, res) => {
 
         const note = await Note.findOne({ _id: noteId, user: req.user.id });
         if (!note) {
-            return res.status(404).json({ message: 'Note not found' });
+            return res.status(404).json({ message: 'Invalid note id' });
         }
 
         res.status(200).json({ note });
@@ -78,7 +74,7 @@ export const deleteNote = async (req, res) => {
         }
         const note = await Note.findOneAndDelete({ _id: noteId, user: req.user.id });
         if (!note) {
-            return res.status(404).json({ message: 'Note not found' });
+            return res.status(404).json({ message: 'Invalid note id' });
         }
         res.status(200).json({ message: 'Note deleted successfully' });
     } catch (error) {

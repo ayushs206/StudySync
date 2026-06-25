@@ -6,7 +6,7 @@ import { User } from "../models/User.js";
 async function generateTokens(userId) {
     try {
         const user = await User.findById(userId);
-        if (!user) throw new Error("User not found");
+        if (!user) throw new Error("Invalid credentials");
 
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
@@ -38,7 +38,7 @@ export const verifyJWT = async (req, res, next) => {
                 .select("-password -refreshToken");
 
             if (!user) {
-                return res.status(401).json({ message: "User not found" });
+                return res.status(401).json({ message: "Invalid credentials" });
             }
 
             req.user = user;
@@ -65,7 +65,7 @@ export const verifyJWT = async (req, res, next) => {
         const foundUser = await User.findById(decoded.id)
             .select("-password -refreshToken");
 
-        if (!foundUser) return res.status(401).json({ message: "User not found" });
+        if (!foundUser) return res.status(401).json({ message: "Invalid credentials" });
 
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await generateTokens(decoded.id);
 
