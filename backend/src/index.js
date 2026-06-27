@@ -5,9 +5,11 @@ import { connectDB } from './db/connect.js';
 connectDB()
     .then(() => {
         console.log('Connected to the database');
-           const PORT = process.env.SERVER_PORT || 3000;
-            app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`); // Restricts access strictly to your local machine
+         const PORT = process.env.SERVER_PORT || 3000;
+    
+        app.listen(PORT, HOST, () => {
+         console.log(`Server is running locally on  ${PORT}`);
+        });
     })
     .catch((error) => {
         console.error('Failed to connect to the database:', error);
