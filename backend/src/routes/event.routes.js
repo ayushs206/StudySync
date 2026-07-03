@@ -7,7 +7,7 @@ const router = Router();
 router.post('/', createEvent);
 router.get('/', getEvents);
 router.get('/:id', getEventById);
-router.put('/:id', updateEvent);
+router.patch('/:id', updateEvent);
 router.delete('/:id', deleteEvent);
 
 export default router;
