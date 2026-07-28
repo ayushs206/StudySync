@@ -71,8 +71,8 @@ export const verifyJWT = async (req, res, next) => {
 
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
-            secure: process.env.SECURE_COOKIES === 'true',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true',
+            sameSite: (process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true') ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
