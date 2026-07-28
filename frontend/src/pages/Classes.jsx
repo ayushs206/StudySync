@@ -222,14 +222,7 @@ export default function Classes() {
               </div>
 
               <div className="flex justify-between items-center mt-2">
-                <a 
-                  href={cls.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-bold text-brand-purple hover:text-purple-300 inline-flex items-center gap-1 hover:underline"
-                >
-                  Join Lecture Room <ExternalLink className="w-3 h-3" />
-                </a>
+               
                 <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                   Enrolled
                 </span>

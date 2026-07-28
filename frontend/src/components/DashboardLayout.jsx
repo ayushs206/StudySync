@@ -13,7 +13,9 @@ import {
   UserCheck,
   Menu,
   X,
-  Award
+  Award,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { api, setAccessToken } from "../api";
 
@@ -79,9 +81,7 @@ export default function DashboardLayout({ children, activeTab = "dashboard" }) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: Layers, path: "/dashboard" },
     { id: "classes", label: "My Classes", icon: BookMarked, path: "/classes" },
-    { id: "grades", label: "My Grades", icon: Award, path: "/grades" },
     { id: "schedule", label: "Schedule", icon: Calendar, path: "/schedule" },
-    { id: "messages", label: "Messages", icon: MessageSquare, path: "#messages", onClick: () => alert("Messages module: 3 unread team chats.") },
     { id: "settings", label: "Settings", icon: Settings, path: "/settings" },
   ];
 
@@ -129,13 +129,27 @@ export default function DashboardLayout({ children, activeTab = "dashboard" }) {
             </button>
           </div>
 
-          {/* User Profile Card */}
+          {/* User Profile Card with Email Verification Status Badge */}
           <div className="p-4 rounded-2xl bg-gradient-to-tr from-brand-blue/10 via-brand-purple/10 to-brand-green/10 border border-slate-800 flex items-center gap-3 text-left">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-brand-blue to-brand-purple flex items-center justify-center text-white font-bold shadow-md shadow-brand-purple/10 uppercase">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-brand-blue to-brand-purple flex items-center justify-center text-white font-bold shadow-md shadow-brand-purple/10 uppercase shrink-0">
               {userInitials || "U"}
             </div>
-            <div className="min-w-0">
-              <p className="font-heading font-bold text-sm text-slate-100 truncate">{currentUser.first_name} {currentUser.last_name}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-1">
+                <p className="font-heading font-bold text-sm text-slate-100 truncate">{currentUser.first_name} {currentUser.last_name}</p>
+                
+                {/* Email Verification Status Badge */}
+                {currentUser.isVerified ? (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20 shrink-0" title="Email Verified">
+                    <CheckCircle2 className="w-2.5 h-2.5" /> Verified
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20 shrink-0" title="Email Unverified">
+                    <AlertCircle className="w-2.5 h-2.5" /> Unverified
+                  </span>
+                )}
+              </div>
+
               <p className="text-xs text-slate-400 font-medium truncate">
                 {currentUser.role === "admin" ? "System Admin" : yearString}
               </p>

@@ -20,13 +20,18 @@ export default function VerifyEmail() {
     let isMounted = true;
 
     api.verifyEmail(token)
-      .then(() => {
+      .then((res) => {
         if (isMounted) {
           setStatus('success');
         }
       })
       .catch((err) => {
         if (isMounted) {
+          // If the backend says "Email already verified", treat it as clean success!
+          if (err.message && (err.message.toLowerCase().includes('already verified') || err.message.toLowerCase().includes('verified'))) {
+            setStatus('success');
+            return;
+          }
           setStatus('error');
           setErrorMessage(err.message || 'Failed to verify email token.');
         }

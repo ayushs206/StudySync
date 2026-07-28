@@ -198,7 +198,7 @@ export default function Signup() {
                   Check Your Email Inbox
                 </h3>
                 <p className="text-slate-300 mt-2 text-sm leading-relaxed">
-                  A real email verification link has been sent to <strong className="text-brand-purple font-bold">{email}</strong> via Resend.
+                  A real email verification link has been sent to <strong className="text-brand-purple font-bold">{email}</strong>.
                 </p>
               </div>
 

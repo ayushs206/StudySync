@@ -393,20 +393,14 @@ export default function Dashboard() {
               <span>My Classes</span>
             </Link>
 
-            <Link to="/grades" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-brand-purple/10 hover:text-purple-400 font-medium text-sm transition-colors w-full">
-              <UserCheck className="w-4 h-4" />
-              <span>My Grades</span>
-            </Link>
+            
 
             <Link to="/schedule" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-brand-purple/10 hover:text-purple-400 font-medium text-sm transition-colors w-full">
               <Calendar className="w-4 h-4" />
               <span>Schedule</span>
             </Link>
 
-            <button onClick={() => alert("Opening messenger chat...")} className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-brand-purple/10 hover:text-purple-400 font-medium text-sm transition-colors w-full cursor-pointer">
-              <MessageSquare className="w-4 h-4" />
-              <span>Messages</span>
-            </button>
+            
 
             <Link to="/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-brand-purple/10 hover:text-purple-400 font-medium text-sm transition-colors w-full">
               <Settings className="w-4 h-4" />
@@ -448,7 +442,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="font-heading font-bold text-sm text-slate-100">Verify Your Email Address</p>
-                <p className="text-xs text-slate-400 mt-0.5">Please check your inbox for the real verification link sent to <strong>{currentUser.email}</strong> via Resend.</p>
+                <p className="text-xs text-slate-400 mt-0.5">Please check your inbox for the real verification link sent to <strong>{currentUser.email}</strong></p>
                 {resendStatusMsg && (
                   <p className="text-[11px] font-bold text-emerald-400 mt-1">{resendStatusMsg}</p>
                 )}

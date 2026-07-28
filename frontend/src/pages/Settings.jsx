@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout";
-import { 
-  Settings as SettingsIcon, 
-  User, 
-  Lock, 
-  Bell, 
-  Shield, 
-  Sparkles, 
-  CheckCircle, 
-  Save, 
-  Loader2 
+import {
+  Settings as SettingsIcon,
+  User,
+  Lock,
+  Bell,
+  Shield,
+  Sparkles,
+  CheckCircle,
+  Save,
+  Loader2
 } from "lucide-react";
 import { api } from "../api";
 
 export default function Settings() {
   const [currentUser, setCurrentUser] = useState(null);
-  
+
   // Profile Form States
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -23,10 +23,8 @@ export default function Settings() {
   const [saveStatus, setSaveStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  // Security Form States
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  // Security States (reset-link flow, not in-place change)
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [securityStatus, setSecurityStatus] = useState("");
 
   // Notification Toggle States
@@ -73,22 +71,20 @@ export default function Settings() {
     }
   };
 
-  const handleChangePassword = (e) => {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 8) {
-      setSecurityStatus("New password must be at least 8 characters.");
-      return;
+  const handleRequestPasswordReset = async () => {
+    setSecurityStatus("");
+    setIsSendingReset(true);
+    try {
+      // NOTE: confirm this path matches your actual Express route exactly
+      // (hyphen vs underscore matters — check routes file, don't assume)
+      await api.post("/auth/forgot-password", { email: currentUser?.email });
+      setSecurityStatus("If that email exists, a reset link has been sent.");
+    } catch (err) {
+      setSecurityStatus(err?.response?.data?.message || "Something went wrong. Try again.");
+    } finally {
+      setIsSendingReset(false);
+      setTimeout(() => setSecurityStatus(""), 5000);
     }
-    if (newPassword !== confirmPassword) {
-      setSecurityStatus("Passwords do not match.");
-      return;
-    }
-
-    setSecurityStatus("Password updated successfully!");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setTimeout(() => setSecurityStatus(""), 3000);
   };
 
   return (
@@ -108,10 +104,10 @@ export default function Settings() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
+
         {/* Left Column: Profile & Security */}
         <div className="lg:col-span-8 flex flex-col gap-8">
-          
+
           {/* Card 1: Profile Information */}
           <div className="glass-card p-6 sm:p-8 rounded-3xl border border-slate-800 text-left">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
@@ -130,8 +126,8 @@ export default function Settings() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">First Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
@@ -141,8 +137,8 @@ export default function Settings() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Last Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
@@ -154,8 +150,8 @@ export default function Settings() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Address</label>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     value={currentUser?.email || ""}
                     disabled
                     className="px-4 py-3 bg-slate-900/40 border border-slate-800/60 rounded-2xl text-slate-500 text-sm cursor-not-allowed font-medium"
@@ -164,7 +160,7 @@ export default function Settings() {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Year of Study</label>
-                  <select 
+                  <select
                     value={yearOfStudy}
                     onChange={(e) => setYearOfStudy(e.target.value)}
                     className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
@@ -179,7 +175,7 @@ export default function Settings() {
               </div>
 
               <div className="flex justify-end mt-4">
-                <button 
+                <button
                   type="submit"
                   disabled={isSaving}
                   className="px-6 py-3 rounded-2xl bg-gradient-to-r from-brand-blue to-brand-purple text-white font-bold text-xs flex items-center gap-2 hover:shadow-lg hover:shadow-brand-purple/20 transition-all btn-premium cursor-pointer"
@@ -191,7 +187,7 @@ export default function Settings() {
             </form>
           </div>
 
-          {/* Card 2: Security & Password */}
+          {/* Card 2: Security & Password (reset-link flow, not in-place change) */}
           <div className="glass-card p-6 sm:p-8 rounded-3xl border border-slate-800 text-left">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
               <Lock className="w-5 h-5 text-purple-400" />
@@ -205,58 +201,27 @@ export default function Settings() {
               </div>
             )}
 
-            <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Password</label>
-                <input 
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
-                />
-              </div>
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              For security, password changes are handled via a reset link sent to your registered email address.
+            </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Password</label>
-                  <input 
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="At least 8 characters"
-                    className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Confirm New Password</label>
-                  <input 
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat new password"
-                    className="px-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <button 
-                  type="submit"
-                  className="px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs transition-colors cursor-pointer"
-                >
-                  Update Password
-                </button>
-              </div>
-            </form>
+            <div className="flex justify-end">
+              <button
+                onClick={handleRequestPasswordReset}
+                disabled={isSendingReset || !currentUser?.email}
+                className="px-6 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSendingReset ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                Send Password Reset Link
+              </button>
+            </div>
           </div>
 
         </div>
 
         {/* Right Column: Preferences & Notifications */}
         <div className="lg:col-span-4 flex flex-col gap-8">
-          
+
           {/* Notification Preferences */}
           <div className="glass-card p-6 sm:p-8 rounded-3xl border border-slate-800 text-left">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
@@ -265,25 +230,13 @@ export default function Settings() {
             </div>
 
             <div className="flex flex-col gap-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-heading font-bold text-sm text-slate-200">Email Notifications</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Receive real email alerts for calendar events</p>
-                </div>
-                <button 
-                  onClick={() => setEmailAlerts(!emailAlerts)}
-                  className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center ${emailAlerts ? "bg-brand-purple justify-end" : "bg-slate-800 justify-start"}`}
-                >
-                  <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                </button>
-              </div>
 
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-heading font-bold text-sm text-slate-200">Browser Reminders</h4>
                   <p className="text-xs text-slate-400 mt-0.5">Push notifications when classes start</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setReminderPush(!reminderPush)}
                   className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center ${reminderPush ? "bg-brand-purple justify-end" : "bg-slate-800 justify-start"}`}
                 >
@@ -296,7 +249,7 @@ export default function Settings() {
                   <h4 className="font-heading font-bold text-sm text-slate-200">Weekly Progress Digest</h4>
                   <p className="text-xs text-slate-400 mt-0.5">Summary report of attendance & grades</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setWeeklyDigest(!weeklyDigest)}
                   className={`w-12 h-6 rounded-full transition-colors p-1 flex items-center ${weeklyDigest ? "bg-brand-purple justify-end" : "bg-slate-800 justify-start"}`}
                 >
@@ -313,7 +266,7 @@ export default function Settings() {
               <h3 className="font-heading font-bold text-sm text-slate-100">Account Security Status</h3>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Your account is protected by JWT access tokens and Resend email authorization.
+              Your account is protected.
             </p>
           </div>
 
