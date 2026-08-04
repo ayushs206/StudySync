@@ -42,8 +42,8 @@ export const register = async (req, res) => {
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.SECURE_COOKIES === 'production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true',
+            sameSite: (process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true') ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 //7days
         });
 
@@ -91,8 +91,8 @@ export const login = async (req, res) => {
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.SECURE_COOKIES === 'production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true',
+            sameSite: (process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true') ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 //7days
         });
 
@@ -318,8 +318,8 @@ export const logout = async (req, res) => {
         if (refreshToken) {
             res.clearCookie('refreshToken', {
                 httpOnly: true,
-                secure: process.env.SECURE_COOKIES === 'production',
-                sameSite: 'strict',
+                secure: process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true',
+                sameSite: (process.env.NODE_ENV === 'production' || process.env.SECURE_COOKIES === 'production' || process.env.SECURE_COOKIES === 'true') ? 'none' : 'lax',
                 maxAge: 7 * 24 * 60 * 60 * 1000 //7days
             });
         }

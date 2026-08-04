@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { 
   Mail, 
@@ -13,7 +13,7 @@ import {
   Loader2,
   Send
 } from "lucide-react";
-import { api, setAccessToken } from "../api";
+import { api, setAccessToken, getAccessToken } from "../api";
 
 /* ── Password strength helper ── */
 function getPasswordStrength(password) {
@@ -31,6 +31,13 @@ function getPasswordStrength(password) {
 
 export default function Signup() {
   const navigate = useNavigate();
+
+  // Redirect to dashboard if token exists
+  useEffect(() => {
+    if (getAccessToken() || localStorage.getItem("studysync_token")) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
   
   // Fields state
   const [firstName, setFirstName] = useState("");

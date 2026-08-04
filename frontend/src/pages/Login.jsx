@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { 
   Mail, 
@@ -16,10 +16,17 @@ import {
   CheckCircle,
   XCircle
 } from "lucide-react";
-import { api, setAccessToken } from "../api";
+import { api, setAccessToken, getAccessToken } from "../api";
 
 export default function Login() {
   const navigate = useNavigate();
+
+  // Redirect to dashboard if token exists
+  useEffect(() => {
+    if (getAccessToken() || localStorage.getItem("studysync_token")) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

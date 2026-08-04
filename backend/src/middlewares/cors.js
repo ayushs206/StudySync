@@ -1,6 +1,6 @@
 import cors from 'cors';
 
-const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
     'http://localhost:5173', 'http://localhost:8000'
 ]
 
@@ -13,5 +13,6 @@ export default cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    exposedHeaders: ['Authorization', 'authorization']
 });
