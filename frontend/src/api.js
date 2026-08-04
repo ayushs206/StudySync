@@ -82,4 +82,14 @@ export const api = {
   logout: () => request('/auth/logout', {
     method: 'POST',
   }),
+
+  forgotPassword: (email) => request('/auth/forgot_password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+
+  resetPassword: (token, newPassword) => request(`/auth/reset_password?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    body: JSON.stringify({ new_password: newPassword }),
+  }),
 };

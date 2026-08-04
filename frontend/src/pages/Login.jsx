@@ -223,9 +223,9 @@ export default function Login() {
                 <label className="text-xs font-bold text-slate-400 tracking-wider uppercase">
                   Password
                 </label>
-                <a href="#forgot" className="text-xs font-semibold text-purple-400 hover:underline">
+                <Link to="/forgot-password" className="text-xs font-semibold text-purple-400 hover:underline">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <div className="relative flex items-center">
                 <Lock className="w-5 h-5 text-slate-400 absolute left-4" />

@@ -9,6 +9,8 @@ import Classes from "./pages/Classes";
 
 import Schedule from "./pages/Schedule";
 import Settings from "./pages/Settings";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
       <Route path="/schedule" element={<Schedule />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
     </Routes>
   )
 }
