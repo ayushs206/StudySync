@@ -83,6 +83,26 @@ export const api = {
     method: 'POST',
   }),
 
+  getTasks: () => request('/tasks', {
+    method: 'GET',
+  }),
+
+  createTask: (taskData) => request('/tasks', {
+    method: 'POST',
+    body: JSON.stringify(taskData),
+  }),
+  
+  updateTask: (taskId, taskData) => request(`/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(taskData),
+  }),
+  getTaskbyId: (taskId) => request(`/tasks/${taskId}`, {
+    method: 'GET',
+  }),
+  deleteTask: (taskId) => request(`/tasks/${taskId}`, {
+    method: 'DELETE',
+  }),
+
   forgotPassword: (email) => request('/auth/forgot_password', {
     method: 'POST',
     body: JSON.stringify({ email }),

@@ -266,10 +266,9 @@ export const sendPasswordResetEmail = async (req, res) => {
             await sendPasswordResetEmailMail(user.email, resetToken);
         } catch (err) {
             console.error('Failed to send password reset email:', err);
-            return res.status(500).json({ message: 'Failed to send password reset email' });
         }
 
-        return res.status(200).json({ message: 'Password reset email sent' });
+        return res.status(200).json({ message: 'If that email exists, a reset link was sent.' });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: 'Internal server error' });

@@ -140,29 +140,25 @@ export default function Dashboard() {
     async function fetchUser() {
       try {
         const res = await api.getMe();
-        if (isMounted && res.user) {
+        if (isMounted){
+          if(res.user) {
           setCurrentUser(res.user);
           localStorage.setItem("studysync_user", JSON.stringify(res.user));
           setLoadingUser(false);
-          return;
+        }else{
+          navigate("/login");
         }
+        return;
+      }
       } catch (err) {
+        if (!isMounted) return;
         const sessionStr = localStorage.getItem("studysync_user");
         if (sessionStr) {
           setCurrentUser(JSON.parse(sessionStr));
           setLoadingUser(false);
           return;
         }
-        // Fallback default user if not logged in
-        setCurrentUser({
-          first_name: "Alex",
-          last_name: "Student",
-          email: "alex@studysync.edu",
-          role: "user",
-          year_of_study: 2,
-          isVerified: true
-        });
-        setLoadingUser(false);
+        navigate("/login");
       }
     }
 
@@ -283,12 +279,21 @@ export default function Dashboard() {
   const handleDeleteNote = (id) => setNotes(notes.filter(n => n.id !== id));
 
   // TASKS ACTIONS
+  async function fetchTask(){
+    try{
+      const res = await api.getTasks({});
+    }
+    catch(err){
+      return 
+    }
+  }
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskText) return;
     setTasks([...tasks, { id: Date.now(), text: newTaskText, completed: false }]);
     setNewTaskText("");
   };
+
   const handleToggleTask = (id) => setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   const handleDeleteTask = (id) => setTasks(tasks.filter(t => t.id !== id));
   const completedTasksCount = tasks.filter(t => t.completed).length;
