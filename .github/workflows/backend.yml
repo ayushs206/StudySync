@@ -32,11 +32,11 @@ jobs:
               . "$NVM_DIR/nvm.sh"
             fi
 
-            cd /root/ayush-projects/StudySync/backend
+            cd /root/ayush-projects/StudySync
 
             git fetch origin
             git reset --hard origin/main
 
             npm ci
 
-            pm2 restart studysync-backend
+            pm2 restart studysync
