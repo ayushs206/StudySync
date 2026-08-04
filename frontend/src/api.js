@@ -215,4 +215,24 @@ export const api = {
   logout: () => request('/auth/logout', {
     method: 'POST',
   }),
+
+  getTasks: () => request('/tasks', {
+    method: 'GET',
+  }),
+
+  createTask: (taskData) => request('/tasks', {
+    method: 'POST',
+    body: JSON.stringify(taskData),
+  }),
+  
+  updateTask: (taskId, taskData) => request(`/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(taskData),
+  }),
+  getTaskbyId: (taskId) => request(`/tasks/${taskId}`, {
+    method: 'GET',
+  }),
+  deleteTask: (taskId) => request(`/tasks/${taskId}`, {
+    method: 'DELETE',
+  }),
 };
