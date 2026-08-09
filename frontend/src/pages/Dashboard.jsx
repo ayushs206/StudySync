@@ -100,12 +100,14 @@ export default function Dashboard() {
   const [showNoteForm, setShowNoteForm] = useState(false);
 
   // --- 3. MANAGE TASKS ---
+  
   const [tasks, setTasks] = useState([]);
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskDeadline,setNewTaskDeadline]=useState("");
   const [newTaskPriority,setNewTaskPriority]=useState("");
   const [loadingTasks,setLoadingTasks]=useState(true);
   const [tasksError,setErrorTasks]=useState(null);
+ 
   async function fetchTasks() {
     setLoadingTasks(true);
     setErrorTasks(null);
@@ -315,7 +317,7 @@ export default function Dashboard() {
   setTasks(prev=>[...prev,res.task]);
   setNewTaskText("");
 }catch(err){
-  setTasksError(err.message);
+  setErrorTasks(err.message);
 }
  }
 
@@ -326,7 +328,7 @@ export default function Dashboard() {
     const res = await api.updateTask(id, { status: nextStatus });
     setTasks(prev => prev.map(t => t._id === id ? res.task : t));
   } catch (err) {
-    setTasksError(err.message);
+    setErrorTasks(err.message);
   }
 };
 
@@ -336,7 +338,7 @@ const handleDeleteTask = async (id) =>{
   setTasks(prev => prev.filter(t => t._id !== id));
   }
   catch(err){
-    setTasksError(err.message);
+    setErrorTasks(err.message);
   }
 }
   const completedTasksCount = tasks.filter(t => t.status==='completed').length;
@@ -885,6 +887,9 @@ const handleDeleteTask = async (id) =>{
                         {taskCompletionRate}% Done
                       </span>
                     </div>
+                     {tasksError && (
+                        <p className="text-[10px] text-rose-400 font-semibold mb-2">{tasksError}</p>
+                      )}
 
                     <form onSubmit={handleAddTask} className="flex gap-2 mb-3">
                       <input 
