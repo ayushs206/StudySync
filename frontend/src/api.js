@@ -112,4 +112,23 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ new_password: newPassword }),
   }),
+
+  //NOTES
+  createNote: (noteData) => request('/notes', {
+    method: 'POST',
+    body: JSON.stringify(noteData),
+  }),
+  getNotes: () => request('/notes', {
+    method: 'GET',
+  }),
+  getNoteById: (noteId) => request(`/notes/${noteId}`, {
+    method: 'GET',
+  }), 
+  updateNote: (noteId, noteData) => request(`/notes/${noteId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(noteData),
+  }),
+  deleteNote: (noteId) => request(`/notes/${noteId}`, {
+    method: 'DELETE',
+  }),
 };

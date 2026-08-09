@@ -106,7 +106,7 @@ export const updateNote = async (req, res) => {
         const note = await Note.findOneAndUpdate(
             { _id: noteId, user: req.user.id },
             { $set: { title, content } },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!note) {

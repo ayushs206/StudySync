@@ -91,13 +91,28 @@ export default function Dashboard() {
   const [subjectTimeInput, setSubjectTimeInput] = useState("");
 
   // --- 2. STORE NOTES ---
-  const [notes, setNotes] = useState([
-    { id: 1, title: "Kinematics Lecture", content: "Notes on joint rotations, degrees of freedom, and matrices.", date: "May 18" },
-    { id: 2, title: "C++ Vectors Cheat Sheet", content: "std::vector initialization, push_back, size, and capacity rules.", date: "May 17" }
-  ]);
+  const [notes, setNotes] = useState([]);
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [newNoteContent, setNewNoteContent] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState(null);
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const[loadingNotes,setLoadingNotes]=useState(true);
+  const[notesError,setNotesError]=useState(null);
+
+  async function fetchNotes(){
+    setLoadingNotes(true);
+    setNotesError(null);
+    try{
+      const res=await api.getNotes();
+      setNotes(res.notes);
+
+    }catch(err){
+      setNotesError(err.message || "Failed to load notes");
+    } finally {
+      setLoadingNotes(false);
+    }
+  }
+  useEffect(()=>{fetchNotes();},[]);
 
   // --- 3. MANAGE TASKS ---
   
@@ -286,16 +301,57 @@ export default function Dashboard() {
   };
 
   // NOTES ACTIONS
-  const handleAddNote = (e) => {
+  const handleAddNote = async (e) => {
     e.preventDefault();
-    if (!newNoteTitle || !newNoteContent) return;
-    setNotes([{ id: Date.now(), title: newNoteTitle, content: newNoteContent, date: `May ${selectedDate}` }, ...notes]);
+    if (!newNoteTitle || !newNoteContent){
+      setNotesError("Both title and content are required to add a note.");
+    return;
+  }
+  try{
+    const res=await api.createNote({
+      title:newNoteTitle,
+      content:newNoteContent});
+    setNotes(prev=>[...prev,res.note]);
     setNewNoteTitle("");
     setNewNoteContent("");
-    setShowNoteForm(false);
-  };
-  const handleDeleteNote = (id) => setNotes(notes.filter(n => n.id !== id));
+    }
+  catch(err){
+    setNotesError("Failed to add note.");
+  }
+};
+  const openEditNote = (note) => {
+  setEditingNoteId(note._id);
+  setNewNoteTitle(note.title);
+  setNewNoteContent(note.content);
+  }
 
+
+  const handleEditNote = async ( updatedTitle, updatedContent) => {
+    try{
+   const res =await api.updateNote(editingNoteId, { title: updatedTitle, content: updatedContent });
+   setNotes(prev => prev.map(n => n._id === editingNoteId ? res.note : n));
+   setEditingNoteId(null);
+   setNewNoteTitle("");
+   setNewNoteContent("");
+    }catch(err){
+      setNotesError("Failed to update note.");
+    }
+
+  };
+
+
+
+
+
+  const handleDeleteNote = async (id) => {
+    try{
+      await api.deleteNote(id);
+      setNotes(notes.filter(n => n._id !== id));
+    }catch(err){
+      setNotesError("Failed to delete note.");
+    }
+  };
+  
   // TASKS ACTIONS
   
   
@@ -811,68 +867,108 @@ const handleDeleteTask = async (id) =>{
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 
                 {/* WIDGET 2: STORE NOTES */}
-                <div className="glass-card p-6 rounded-3xl border border-slate-800/60 text-left flex flex-col justify-between min-h-[280px]">
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
-                          <Bookmark className="w-4 h-4" />
-                        </div>
-                        <h2 className="font-heading font-bold text-lg text-slate-100">Store Notes</h2>
-                      </div>
-                      <button 
-                        onClick={() => setShowNoteForm(!showNoteForm)}
-                        className="w-7 h-7 rounded-lg border border-slate-700 flex items-center justify-center text-slate-300 hover:bg-slate-800"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
+<div className="glass-card p-6 rounded-3xl border border-slate-800/60 text-left flex flex-col justify-between min-h-[280px]">
+  <div>
+    <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-xl bg-brand-blue/10 text-brand-blue flex items-center justify-center">
+          <Bookmark className="w-4 h-4" />
+        </div>
+        <h2 className="font-heading font-bold text-lg text-slate-100">Store Notes</h2>
+      </div>
+      <button
+        onClick={() => {
+          setShowNoteForm(!showNoteForm);
+          setEditingNoteId(null);
+          setNewNoteTitle("");
+          setNewNoteContent("");
+        }}
+        className="w-7 h-7 rounded-lg border border-slate-700 flex items-center justify-center text-slate-300 hover:bg-slate-800"
+      >
+        <Plus className="w-4 h-4" />
+      </button>
+    </div>
 
-                    {showNoteForm ? (
-                      <form onSubmit={handleAddNote} className="flex flex-col gap-2 p-2 bg-slate-900/50 border border-slate-800 rounded-2xl animate-fade-in mb-3">
-                        <input 
-                          type="text" 
-                          placeholder="Note Title" 
-                          value={newNoteTitle}
-                          onChange={(e) => setNewNoteTitle(e.target.value)}
-                          className="px-3 py-1.5 text-xs border border-slate-700 rounded-lg focus:outline-none w-full bg-slate-800 text-slate-100 font-medium"
-                        />
-                        <textarea 
-                          placeholder="Content summary..." 
-                          value={newNoteContent}
-                          onChange={(e) => setNewNoteContent(e.target.value)}
-                          className="px-3 py-1.5 text-xs border border-slate-700 rounded-lg focus:outline-none w-full bg-slate-800 text-slate-100 h-12 resize-none font-medium"
-                        />
-                        <div className="flex gap-2 justify-end">
-                          <button type="button" onClick={() => setShowNoteForm(false)} className="text-[9px] font-bold px-2 py-1 text-slate-500 hover:underline">Cancel</button>
-                          <button type="submit" className="text-[9px] font-bold px-3 py-1 bg-brand-blue text-white rounded-lg">Save</button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div className="flex flex-col gap-3 max-h-[160px] overflow-y-auto pr-1">
-                        {notes.map((note) => (
-                          <div key={note.id} className="p-2.5 bg-slate-900/40 border border-slate-800 rounded-2xl flex justify-between items-start gap-2">
-                            <div className="min-w-0 text-left">
-                              <span className="font-heading font-bold text-xs text-slate-200 block truncate">{note.title}</span>
-                              <span className="text-[10px] text-slate-400 leading-normal block mt-0.5 truncate">{note.content}</span>
-                            </div>
-                            <button 
-                              onClick={() => handleDeleteNote(note.id)}
-                              className="text-slate-400 hover:text-rose-500 p-0.5 shrink-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+    {notesError && (
+      <p className="text-[10px] text-rose-400 font-semibold mb-2">{notesError}</p>
+    )}
 
-                  <div className="pt-4 border-t border-slate-800 text-xs text-slate-400 font-semibold flex justify-between items-center">
-                    <span>Saved Notes: {notes.length}</span>
-                    <button className="text-[10px] text-brand-blue font-bold hover:underline">View folders</button>
-                  </div>
-                </div>
+    {showNoteForm ? (
+      <form
+        onSubmit={
+          editingNoteId
+            ? (e) => { e.preventDefault(); handleEditNote(newNoteTitle, newNoteContent); }
+            : handleAddNote
+        }
+        className="flex flex-col gap-2 p-2 bg-slate-900/50 border border-slate-800 rounded-2xl animate-fade-in mb-3"
+      >
+        <input
+          type="text"
+          placeholder="Note Title"
+          value={newNoteTitle}
+          onChange={(e) => setNewNoteTitle(e.target.value)}
+          className="px-3 py-1.5 text-xs border border-slate-700 rounded-lg focus:outline-none w-full bg-slate-800 text-slate-100 font-medium"
+        />
+        <textarea
+          placeholder="Content summary..."
+          value={newNoteContent}
+          onChange={(e) => setNewNoteContent(e.target.value)}
+          className="px-3 py-1.5 text-xs border border-slate-700 rounded-lg focus:outline-none w-full bg-slate-800 text-slate-100 h-12 resize-none font-medium"
+        />
+        <div className="flex gap-2 justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              setShowNoteForm(false);
+              setEditingNoteId(null);
+              setNewNoteTitle("");
+              setNewNoteContent("");
+            }}
+            className="text-[9px] font-bold px-2 py-1 text-slate-500 hover:underline"
+          >
+            Cancel
+          </button>
+          <button type="submit" className="text-[9px] font-bold px-3 py-1 bg-brand-blue text-white rounded-lg">
+            {editingNoteId ? "Update" : "Save"}
+          </button>
+        </div>
+      </form>
+    ) : (
+      <div className="flex flex-col gap-3 max-h-[160px] overflow-y-auto pr-1">
+        {notes.map((note) => (
+          <div key={note._id} className="p-2.5 bg-slate-900/40 border border-slate-800 rounded-2xl flex justify-between items-start gap-2">
+            <div className="min-w-0 text-left">
+              <span className="font-heading font-bold text-xs text-slate-200 block truncate">{note.title}</span>
+              <span className="text-[10px] text-slate-400 leading-normal block mt-0.5 truncate">{note.content}</span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => {
+                  openEditNote(note);
+                  setShowNoteForm(true);
+                }}
+                className="text-slate-400 hover:text-brand-purple p-0.5"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => handleDeleteNote(note._id)}
+                className="text-slate-400 hover:text-rose-500 p-0.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+
+  <div className="pt-4 border-t border-slate-800 text-xs text-slate-400 font-semibold flex justify-between items-center">
+    <span>Saved Notes: {notes.length}</span>
+    <button className="text-[10px] text-brand-blue font-bold hover:underline">View folders</button>
+  </div>
+</div>
 
                 {/* WIDGET 3: MANAGE TASKS */}
                 <div className="glass-card p-6 rounded-3xl border border-slate-800/60 text-left flex flex-col justify-between min-h-[280px]">
@@ -1208,4 +1304,5 @@ const handleDeleteTask = async (id) =>{
 
     </div>
   );
-};
+
+}
