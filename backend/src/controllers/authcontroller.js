@@ -19,7 +19,7 @@ export const register = async (req, res) => {
         const existingUser = await User.findOne({ $or: [{ email }, { username }] });   // req.body.email should be asserted as string before it touches any query
 
         if (existingUser) {
-            return res.status(400).json({ message: 'User already exists.Please login' });
+            return res.status(400).json({ message: 'User already exists. Please login' });
         }
 
         const newUser = new User(

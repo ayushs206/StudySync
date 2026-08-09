@@ -304,6 +304,7 @@ export default function Dashboard() {
  const handleAddTask = async (e) => {
   e.preventDefault();
  if(!newTaskText|| !newTaskDeadline || !newTaskPriority){
+  setErrorTasks(null);
   return;
  }
  try{
