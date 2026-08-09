@@ -64,7 +64,8 @@ export const getTasks = async (req, res) => {
             return res.status(400).json({ message: 'Query parameters are required' });
 
         }
-        const { page = 1, limit = 10 } = req.query;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
 
         const tasks = await Task.find({ user: req.user.id })
             .sort({ deadline: 1 })

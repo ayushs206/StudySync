@@ -100,12 +100,28 @@ export default function Dashboard() {
   const [showNoteForm, setShowNoteForm] = useState(false);
 
   // --- 3. MANAGE TASKS ---
-  const [tasks, setTasks] = useState([
-    { id: 1, text: "Finish Robotics arm CAD draft", completed: false },
-    { id: 2, text: "Revise I2C protocol timing diagrams", completed: true },
-    { id: 3, text: "Read Chapter 4 of Calculus textbook", completed: false }
-  ]);
+  const [tasks, setTasks] = useState([]);
   const [newTaskText, setNewTaskText] = useState("");
+  const [newTaskDeadline,setNewTaskDeadline]=useState("");
+  const [newTaskPriority,setNewTaskPriority]=useState("");
+  const [loadingTasks,setLoadingTasks]=useState(true);
+  const [tasksError,setErrorTasks]=useState(null);
+  async function fetchTasks() {
+    setLoadingTasks(true);
+    setErrorTasks(null);
+    try {
+      const res = await api.getTasks({});
+      setTasks(res.tasks); // adjust based on your API's response shape
+    } catch (err) {
+      setErrorTasks(err.message || "Failed to load tasks");
+    } finally {
+      setLoadingTasks(false);
+    }
+  }
+  useEffect(()=>{
+    fetchTasks();
+  },[]);
+
 
   // --- 4. KEEP CALENDAR REMINDERS ---
   const [reminders, setReminders] = useState([
@@ -279,24 +295,51 @@ export default function Dashboard() {
   const handleDeleteNote = (id) => setNotes(notes.filter(n => n.id !== id));
 
   // TASKS ACTIONS
-  async function fetchTask(){
-    try{
-      const res = await api.getTasks({});
-    }
-    catch(err){
-      return 
-    }
-  }
-  const handleAddTask = (e) => {
-    e.preventDefault();
-    if (!newTaskText) return;
-    setTasks([...tasks, { id: Date.now(), text: newTaskText, completed: false }]);
-    setNewTaskText("");
-  };
+  
+  
 
-  const handleToggleTask = (id) => setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  const handleDeleteTask = (id) => setTasks(tasks.filter(t => t.id !== id));
-  const completedTasksCount = tasks.filter(t => t.completed).length;
+
+ const handleAddTask = async (e) => {
+  e.preventDefault();
+ if(!newTaskText|| !newTaskDeadline || !newTaskPriority){
+  return;
+ }
+ try{
+  const res= await api.createTask({
+    title:newTaskText,
+    deadline:newTaskDeadline,
+    priority:newTaskPriority,
+
+
+  });
+  setTasks(prev=>[...prev,res.task]);
+  setNewTaskText("");
+}catch(err){
+  setTasksError(err.message);
+}
+ }
+
+  const handleToggleTask = async (id, status) => {
+  const nextStatus = status === 'completed' ? 'pending' : 'completed';
+
+  try {
+    const res = await api.updateTask(id, { status: nextStatus });
+    setTasks(prev => prev.map(t => t._id === id ? res.task : t));
+  } catch (err) {
+    setTasksError(err.message);
+  }
+};
+
+const handleDeleteTask = async (id) =>{
+  try{
+  await api.deleteTask(id);
+  setTasks(prev => prev.filter(t => t._id !== id));
+  }
+  catch(err){
+    setTasksError(err.message);
+  }
+}
+  const completedTasksCount = tasks.filter(t => t.status==='completed').length;
   const taskCompletionRate = tasks.length > 0 ? Math.round((completedTasksCount / tasks.length) * 100) : 0;
 
   // REMINDERS ACTIONS
@@ -851,6 +894,22 @@ export default function Dashboard() {
                         placeholder="Add a task..."
                         className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-brand-purple font-medium"
                       />
+                      <input
+                        type="date"
+                        value={newTaskDeadline}
+                        onChange={(e)=> setNewTaskDeadline(e.target.value)} 
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-brand-purple font-medium"/>
+                      <select
+                        value={newTaskPriority}
+                        onChange={(e)=>setNewTaskPriority(e.target.value)}
+                        className="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-brand-purple font-medium"
+                        >
+                          <option value="">Priority</option>
+                              {[...Array(10)].map((_, i) => (
+                                <option key={i + 1} value={i + 1}>{i + 1}</option>
+                              ))}
+                      </select>
+                      
                       <button type="submit" className="px-3 bg-brand-purple text-white rounded-xl flex items-center justify-center">
                         <Plus className="w-4 h-4" />
                       </button>
@@ -858,21 +917,21 @@ export default function Dashboard() {
 
                     <div className="flex flex-col gap-2 max-h-[140px] overflow-y-auto pr-1">
                       {tasks.map((task) => (
-                        <div key={task.id} className="flex items-center justify-between p-2.5 bg-slate-900/50 border border-slate-800/40 rounded-xl">
+                        <div key={task._id} className="flex items-center justify-between p-2.5 bg-slate-900/50 border border-slate-800/40 rounded-xl">
                           <button 
-                            onClick={() => handleToggleTask(task.id)}
+                            onClick={() => handleToggleTask(task._id,task.status)}
                             className="flex items-center gap-2.5 text-left w-full focus:outline-none cursor-pointer"
                           >
-                            {task.completed ? (
+                            {task.status==='completed' ? (
                               <CheckSquare className="w-4 h-4 text-brand-purple shrink-0" />
                             ) : (
                               <Square className="w-4 h-4 text-slate-600 shrink-0" />
                             )}
-                            <span className={`text-xs font-medium text-slate-200 ${task.completed ? "line-through text-slate-500" : ""}`}>
-                              {task.text}
+                            <span className={`text-xs font-medium text-slate-200 ${task.status==='completed'? "line-through text-slate-500" : ""}`}>
+                              {task.title}
                             </span>
                           </button>
-                          <button onClick={() => handleDeleteTask(task.id)} className="text-slate-400 hover:text-rose-500 p-0.5">
+                          <button onClick={() => handleDeleteTask(task._id)} className="text-slate-400 hover:text-rose-500 p-0.5">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -1143,4 +1202,4 @@ export default function Dashboard() {
 
     </div>
   );
-}
+};
