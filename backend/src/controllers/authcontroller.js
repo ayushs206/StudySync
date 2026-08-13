@@ -256,24 +256,23 @@ export const sendPasswordResetEmail = async (req, res) => {
         }
 
         const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: 'Invalid credentials' });
+
+        if (user) {
+            const resetToken = user.passwordResetToken();
+
+            try {
+                await sendPasswordResetEmailMail(user.email, resetToken);
+            } catch (err) {
+                console.error('Failed to send password reset email:', err);
+            }
         }
 
-        const resetToken = user.passwordResetToken();
-
-        try {
-            await sendPasswordResetEmailMail(user.email, resetToken);
-        } catch (err) {
-            console.error('Failed to send password reset email:', err);
-        }
-
+        // Same response whether the user exists or not — don't leak which emails are registered
         return res.status(200).json({ message: 'If that email exists, a reset link was sent.' });
     } catch (err) {
         console.error(err);
         return res.status(500).json({ message: 'Internal server error' });
     }
-
 };
 
 export const resetPassword = async (req, res) => {

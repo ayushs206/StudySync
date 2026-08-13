@@ -5,6 +5,7 @@ export const limiter = rateLimit({
     limit: 30,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
+     skip: (req) => req.method === 'OPTIONS',
 
     keyGenerator: (req) => {
         const ip =
