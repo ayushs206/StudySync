@@ -23,7 +23,7 @@ export const register = async (req, res) => {
         }
 
         const newUser = new User(
-            { first_name, last_name, email, username, password, year_of_study }
+            { first_name, last_name, email, username, password, year_of_study ,batch}
         )
 
         const accessToken = newUser.generateAccessToken();
@@ -166,11 +166,12 @@ export const UpdateUserInfo = async (req, res) => {
             return res.status(400).json({ message: 'No fields provided to update' });
         }
 
-        const { first_name, last_name, year_of_study } = result.data;
+        const { first_name, last_name, year_of_study,batch } = result.data;
 
         if (first_name !== undefined) user.first_name = first_name;
         if (last_name !== undefined) user.last_name = last_name;
         if (year_of_study !== undefined) user.year_of_study = year_of_study;
+        if (batch !== undefined) user.batch = batch;
         await user.save();
 
         return res.json({ user: user.toSafeObject() });
