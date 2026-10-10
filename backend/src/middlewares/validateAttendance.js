@@ -1,3 +1,4 @@
+
 export function validateAttendance(req, res, next) {
     try{
     const { date, status, subjectCode, slotId } = req.body;
@@ -23,6 +24,6 @@ export function validateAttendance(req, res, next) {
 }catch(err){
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
-}S
+}
 }
 
