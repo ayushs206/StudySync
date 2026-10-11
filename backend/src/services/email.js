@@ -1,7 +1,7 @@
 import '../config/env.js';
 
 import { Resend } from 'resend';
-const resend = new Resend(process.env.EMAIL_RESEND_API_KEY);
+const resend = new Resend(process.env.EMAIL_RESEND_API_KEY || 're_dummy_key_for_init');
 
 import EmailVerifyTemplate from '../utils/emailTemplates/verifyEmail.template.js'
 import PasswordResetTemplate from '../utils/emailTemplates/resetPassword.template.js';

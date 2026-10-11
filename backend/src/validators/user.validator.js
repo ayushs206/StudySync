@@ -4,15 +4,19 @@ export const updateUserSchema = z.object({
     first_name: z.string().min(1).max(50).optional(),
     last_name: z.string().min(1).max(50).optional(),
     year_of_study: z.number().int().min(1).max(6).optional(),
+    batch: z.string().min(1).max(30).optional().nullable(),
+    selectedElectives: z.record(z.string()).optional(),
 });
 
 export const registerSchema = z.object({
     first_name: z.string().min(1).max(50),
-    last_name: z.string().min(1).max(50),
+    last_name: z.string().min(1).max(50).optional(),
     email: z.string().email(),
     password: z.string().min(8).max(100),
     username: z.string().min(3).max(30),
-    year_of_study: z.number().int().min(1).max(6),
+    year_of_study: z.number().int().min(1).max(6).optional(),
+    batch: z.string().min(1).max(30).optional().nullable(),
+    selectedElectives: z.record(z.string()).optional(),
 });
 
 export const loginSchema = z.object({

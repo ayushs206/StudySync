@@ -49,46 +49,78 @@ export default function Dashboard() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendStatusMsg, setResendStatusMsg] = useState("");
 
-  // --- 1. TRACK & EDIT ATTENDANCE (WITH 3 BACKEND STATUSES: Present, Absent, Cancelled) ---
-  const [subjects, setSubjects] = useState([
-    { 
-      id: 1, 
-      code: "CS 101", 
-      name: "Intro to Programming", 
-      time: "09:00 AM", 
-      present: 14, 
-      absent: 2, 
-      cancelled: 1, 
-      todayStatus: "present" 
-    },
-    { 
-      id: 2, 
-      code: "ME 201", 
-      name: "Robotics Laboratory", 
-      time: "11:30 AM", 
-      present: 10, 
-      absent: 3, 
-      cancelled: 2, 
-      todayStatus: "absent" 
-    },
-    { 
-      id: 3, 
-      code: "MA 102", 
-      name: "Calculus & Analysis II", 
-      time: "02:00 PM", 
-      present: 12, 
-      absent: 1, 
-      cancelled: 0, 
-      todayStatus: "cancelled" 
-    }
-  ]);
+  // --- 1. REAL BATCH-DRIVEN SCHEDULE & ATTENDANCE (3 BACKEND STATUSES: Present, Absent, Cancelled) ---
+  const [todayClasses, setTodayClasses] = useState([]);
+  const [attendanceStats, setAttendanceStats] = useState({ subjects: [], overall: { present: 0, absent: 0, cancelled: 0, conducted: 0, rate: 100 } });
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+  const [todayDayName, setTodayDayName] = useState("");
+  const [batchesList, setBatchesList] = useState([]);
+  const [selectedDashBatch, setSelectedDashBatch] = useState("");
+  const [isUpdatingDashBatch, setIsUpdatingDashBatch] = useState(false);
+  const [dashBatchMsg, setDashBatchMsg] = useState("");
 
-  // Subject Modal States
-  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
-  const [editingSubjectId, setEditingSubjectId] = useState(null);
-  const [subjectCodeInput, setSubjectCodeInput] = useState("");
-  const [subjectNameInput, setSubjectNameInput] = useState("");
-  const [subjectTimeInput, setSubjectTimeInput] = useState("");
+  const getTodayFormattedDate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDateStr = getTodayFormattedDate();
+
+  const fetchScheduleAndStats = async () => {
+    setLoadingSchedule(true);
+    try {
+      // 1. Fetch today's classes
+      const ttRes = await api.getTodayTimetable(todayDateStr);
+      if (ttRes) {
+        setTodayClasses(ttRes.classes || []);
+        setTodayDayName(ttRes.day || "");
+      }
+
+      // 2. Fetch attendance stats
+      const statsRes = await api.getAttendanceStats();
+      if (statsRes) {
+        setAttendanceStats(statsRes);
+      }
+    } catch (err) {
+      console.error("Error loading schedule or stats:", err);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchScheduleAndStats();
+      if (!currentUser.batch) {
+        api.getBatches().then(res => {
+          if (res?.batches) setBatchesList(res.batches);
+        }).catch(() => {});
+      }
+    }
+  }, [currentUser]);
+
+  const handleSelectDashBatch = async (newBatch) => {
+    if (!newBatch) return;
+    setIsUpdatingDashBatch(true);
+    setDashBatchMsg("");
+    try {
+      const res = await api.selectBatch({ batch: newBatch });
+      if (res.user) {
+        setCurrentUser(res.user);
+        localStorage.setItem("studysync_user", JSON.stringify(res.user));
+      }
+      setDashBatchMsg(`Batch ${newBatch} activated!`);
+      await fetchScheduleAndStats();
+    } catch (err) {
+      console.error("Failed to set batch:", err);
+    } finally {
+      setIsUpdatingDashBatch(false);
+      setTimeout(() => setDashBatchMsg(""), 4000);
+    }
+  };
 
   // --- 2. STORE NOTES ---
   const [notes, setNotes] = useState([]);
@@ -211,80 +243,37 @@ export default function Dashboard() {
   if (!currentUser) return null;
 
   // ATTENDANCE STATS
-  const totalPresent = subjects.reduce((sum, s) => sum + s.present, 0);
-  const totalAbsent = subjects.reduce((sum, s) => sum + s.absent, 0);
-  const totalCancelled = subjects.reduce((sum, s) => sum + s.cancelled, 0);
-  const totalConducted = totalPresent + totalAbsent;
-  const overallAttendanceRate = totalConducted > 0 ? Math.round((totalPresent / totalConducted) * 100) : 100;
+  const totalPresent = attendanceStats.overall?.present ?? 0;
+  const totalAbsent = attendanceStats.overall?.absent ?? 0;
+  const totalCancelled = attendanceStats.overall?.cancelled ?? 0;
+  const totalConducted = attendanceStats.overall?.conducted ?? (totalPresent + totalAbsent);
+  const overallAttendanceRate = attendanceStats.overall?.rate ?? (totalConducted > 0 ? Math.round((totalPresent / totalConducted) * 100) : 100);
 
-  // Mark 3 statuses: 'present' | 'absent' | 'cancelled'
-  const handleMarkAttendance = (subjectId, status) => {
-    setSubjects(subjects.map(s => {
-      if (s.id === subjectId) {
-        let newPresent = s.present;
-        let newAbsent = s.absent;
-        let newCancelled = s.cancelled;
+  // Mark 3 backend statuses: 'present' | 'absent' | 'cancelled' (or toggle off)
+  const handleMarkAttendance = async (cls, targetStatus) => {
+    const currentStatus = cls.todayStatus;
+    const newStatus = currentStatus === targetStatus ? null : targetStatus;
 
-        if (s.todayStatus === "present") newPresent = Math.max(0, newPresent - 1);
-        if (s.todayStatus === "absent") newAbsent = Math.max(0, newAbsent - 1);
-        if (s.todayStatus === "cancelled") newCancelled = Math.max(0, newCancelled - 1);
+    // Optimistically update today's class card
+    setTodayClasses(prev => prev.map(c => c.slotId === cls.slotId ? { ...c, todayStatus: newStatus } : c));
 
-        if (status === "present") newPresent += 1;
-        if (status === "absent") newAbsent += 1;
-        if (status === "cancelled") newCancelled += 1;
+    try {
+      await api.markAttendance({
+        date: todayDateStr,
+        slotId: cls.slotId,
+        subjectCode: cls.subject_code,
+        status: newStatus
+      });
 
-        return {
-          ...s,
-          present: newPresent,
-          absent: newAbsent,
-          cancelled: newCancelled,
-          todayStatus: s.todayStatus === status ? null : status
-        };
-      }
-      return s;
-    }));
-  };
-
-  // Add/Edit Subject
-  const handleSaveSubject = (e) => {
-    e.preventDefault();
-    if (!subjectCodeInput || !subjectNameInput) return;
-
-    if (editingSubjectId) {
-      setSubjects(subjects.map(s => 
-        s.id === editingSubjectId 
-          ? { ...s, code: subjectCodeInput, name: subjectNameInput, time: subjectTimeInput || "10:00 AM" }
-          : s
-      ));
-    } else {
-      setSubjects([...subjects, {
-        id: Date.now(),
-        code: subjectCodeInput,
-        name: subjectNameInput,
-        time: subjectTimeInput || "10:00 AM",
-        present: 0,
-        absent: 0,
-        cancelled: 0,
-        todayStatus: null
-      }]);
+      // Fetch fresh stats from backend
+      const statsRes = await api.getAttendanceStats();
+      if (statsRes) setAttendanceStats(statsRes);
+    } catch (err) {
+      console.error("Failed to mark attendance:", err);
+      // Revert upon error
+      setTodayClasses(prev => prev.map(c => c.slotId === cls.slotId ? { ...c, todayStatus: currentStatus } : c));
     }
-
-    setSubjectCodeInput("");
-    setSubjectNameInput("");
-    setSubjectTimeInput("");
-    setEditingSubjectId(null);
-    setShowAddSubjectModal(false);
   };
-
-  const openEditSubject = (sub) => {
-    setEditingSubjectId(sub.id);
-    setSubjectCodeInput(sub.code);
-    setSubjectNameInput(sub.name);
-    setSubjectTimeInput(sub.time);
-    setShowAddSubjectModal(true);
-  };
-
-  const handleDeleteSubject = (id) => setSubjects(subjects.filter(s => s.id !== id));
 
   // REAL EMAIL VERIFICATION RESEND
   const handleResendRealVerification = async () => {
@@ -724,130 +713,163 @@ const handleDeleteTask = async (id) =>{
                     <div>
                       <h2 className="font-heading font-extrabold text-xl text-slate-100">Track & Edit Attendance</h2>
                       <p className="text-xs text-slate-400 font-medium">
-                        Mark 3 backend statuses: <span className="text-emerald-400 font-bold">Present</span>, <span className="text-rose-400 font-bold">Absent</span>, or <span className="text-amber-400 font-bold">Cancelled</span>
+                        {currentUser?.batch ? `Batch ${currentUser.batch} • ${todayDayName || "Today's Schedule"}` : "Select your batch to load classes"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => {
-                        setEditingSubjectId(null);
-                        setSubjectCodeInput("");
-                        setSubjectNameInput("");
-                        setSubjectTimeInput("");
-                        setShowAddSubjectModal(true);
-                      }}
-                      className="px-3.5 py-2 bg-gradient-to-r from-brand-blue to-brand-purple text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:shadow-md transition-all cursor-pointer shrink-0"
-                    >
-                      <Plus className="w-4 h-4" /> Add Subject Class
-                    </button>
-                  </div>
+                  {currentUser?.batch && (
+                    <span className="px-3 py-1 bg-brand-purple/10 text-brand-purple border border-brand-purple/20 text-xs font-bold rounded-xl">
+                      Batch {currentUser.batch}
+                    </span>
+                  )}
                 </div>
 
-                {/* Subject Attendance Cards */}
-                <div className="flex flex-col gap-4">
-                  {subjects.map((sub) => {
-                    const subConducted = sub.present + sub.absent;
-                    const subRate = subConducted > 0 ? Math.round((sub.present / subConducted) * 100) : 100;
+                {!currentUser?.batch ? (
+                  <div className="p-6 bg-slate-900/80 rounded-2xl border border-slate-800 text-center flex flex-col items-center gap-3">
+                    <BookOpen className="w-8 h-8 text-brand-purple animate-bounce" />
+                    <div>
+                      <h3 className="font-heading font-bold text-base text-slate-100">No Batch Selected</h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+                        Select your academic batch to automatically load your daily schedule, enrolled subjects, and track attendance.
+                      </p>
+                    </div>
+                    {dashBatchMsg && (
+                      <span className="text-xs text-emerald-400 font-semibold">{dashBatchMsg}</span>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 w-full max-w-xs">
+                      <select
+                        value={selectedDashBatch}
+                        onChange={(e) => setSelectedDashBatch(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-brand-purple"
+                      >
+                        <option value="" disabled>-- Select Batch --</option>
+                        {batchesList.map(b => (
+                          <option key={b} value={b}>Batch {b}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleSelectDashBatch(selectedDashBatch)}
+                        disabled={!selectedDashBatch || isUpdatingDashBatch}
+                        className="px-4 py-2 bg-brand-purple hover:bg-purple-600 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {isUpdatingDashBatch ? "Loading..." : "Activate"}
+                      </button>
+                    </div>
+                  </div>
+                ) : loadingSchedule ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-xs">
+                    <Loader2 className="w-6 h-6 animate-spin text-brand-purple mb-2" />
+                    Loading today's schedule for Batch {currentUser.batch}...
+                  </div>
+                ) : todayClasses.length === 0 ? (
+                  <div className="p-6 bg-slate-900/60 rounded-2xl border border-slate-800 text-center text-slate-400 text-xs">
+                    <p className="font-semibold text-slate-300">No classes scheduled for {todayDayName || "today"}.</p>
+                    <p className="mt-1">Batch {currentUser.batch} has no scheduled lectures today. Enjoy your day off or review your weekly schedule!</p>
+                  </div>
+                ) : (
+                  /* Today's Class Cards */
+                  <div className="flex flex-col gap-4">
+                    {todayClasses.map((cls) => {
+                      const subStats = attendanceStats.subjects?.find(s => s.code === cls.base_subject_code || s.code === cls.subject_code) || {
+                        present: 0,
+                        absent: 0,
+                        cancelled: 0,
+                        conducted: 0,
+                        attendedPoints: 0,
+                        conductedPoints: 0,
+                        percentage: 100
+                      };
 
-                    return (
-                      <div key={sub.id} className="p-4 bg-slate-900/70 border border-slate-800/90 rounded-2xl flex flex-col gap-3 hover:border-slate-700 transition-all">
-                        
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-heading font-bold text-xs text-brand-blue bg-brand-blue/10 px-2 py-0.5 rounded-md border border-brand-blue/20">
-                                {sub.code}
+                      return (
+                        <div key={cls.slotId} className="p-4 bg-slate-900/70 border border-slate-800/90 rounded-2xl flex flex-col gap-3 hover:border-slate-700 transition-all">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-heading font-bold text-xs text-brand-blue bg-brand-blue/10 px-2 py-0.5 rounded-md border border-brand-blue/20">
+                                  {cls.subject_code}
+                                </span>
+                                <span className="font-heading font-bold text-sm text-slate-100">{cls.subject_name}</span>
+                                {cls.isElective && (
+                                  <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/30">
+                                    Elective
+                                  </span>
+                                )}
+                                <span className="text-[10px] bg-slate-800/90 text-slate-300 px-1.5 py-0.5 rounded-md border border-slate-700 font-semibold">
+                                  {cls.sessionType || cls.type || "Lecture"} ({cls.weight ?? 1.0} wt)
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-semibold mt-1 block flex items-center gap-2">
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-brand-purple" /> {cls.time}</span>
+                                {cls.location && <span>• {cls.location}</span>}
+                                {cls.base_subject_code && cls.base_subject_code !== cls.subject_code && (
+                                  <span className="text-slate-500">• Clubbed under {cls.base_subject_code}</span>
+                                )}
                               </span>
-                              <span className="font-heading font-bold text-sm text-slate-100">{sub.name}</span>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-semibold mt-1 block flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-brand-purple" /> {sub.time}
-                            </span>
-                          </div>
 
-                          <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <span className={`font-heading font-extrabold text-sm ${subRate >= 75 ? "text-emerald-400" : "text-rose-400"}`}>
-                                {subRate}% Attendance
+                              <span className={`font-heading font-extrabold text-sm ${subStats.percentage >= 75 ? "text-emerald-400" : "text-rose-400"}`}>
+                                {subStats.percentage}% Attendance
                               </span>
                               <span className="text-[10px] text-slate-400 block font-medium">
-                                ({sub.present} Attended / {subConducted} Conducted)
+                                ({subStats.attendedPoints ?? subStats.present} / {subStats.conductedPoints ?? subStats.conducted} pts • {subStats.present} Attended)
                               </span>
                             </div>
+                          </div>
 
-                            <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
-                              <button 
-                                onClick={() => openEditSubject(sub)}
-                                className="p-1.5 text-slate-400 hover:text-brand-purple rounded-lg hover:bg-slate-800 transition-colors"
-                                title="Edit Class Details"
+                          {/* 3 Status Options to Mark Today */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800/60 text-xs">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Mark Today's Status:
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleMarkAttendance(cls, "present")}
+                                className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
+                                  cls.todayStatus === "present"
+                                    ? "bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20 scale-105"
+                                    : "bg-slate-800 border-slate-700 text-emerald-400 hover:bg-emerald-500/10"
+                                }`}
                               >
-                                <Edit3 className="w-4 h-4" />
+                                <CheckCircle className="w-3.5 h-3.5" /> Present
                               </button>
-                              <button 
-                                onClick={() => handleDeleteSubject(sub.id)}
-                                className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition-colors"
-                                title="Delete Class"
+
+                              <button
+                                onClick={() => handleMarkAttendance(cls, "absent")}
+                                className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
+                                  cls.todayStatus === "absent"
+                                    ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/20 scale-105"
+                                    : "bg-slate-800 border-slate-700 text-rose-400 hover:bg-rose-500/10"
+                                }`}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <XCircle className="w-3.5 h-3.5" /> Absent
+                              </button>
+
+                              <button
+                                onClick={() => handleMarkAttendance(cls, "cancelled")}
+                                className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
+                                  cls.todayStatus === "cancelled"
+                                    ? "bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20 scale-105"
+                                    : "bg-slate-800 border-slate-700 text-amber-400 hover:bg-amber-500/10"
+                                }`}
+                              >
+                                <AlertCircle className="w-3.5 h-3.5" /> Cancelled
                               </button>
                             </div>
                           </div>
                         </div>
-
-                        {/* 3 Status Options to Mark Today */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800/60 text-xs">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            Mark Today's Status:
-                          </span>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleMarkAttendance(sub.id, "present")}
-                              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
-                                sub.todayStatus === "present"
-                                  ? "bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20 scale-105"
-                                  : "bg-slate-800 border-slate-700 text-emerald-400 hover:bg-emerald-500/10"
-                              }`}
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" /> Present ({sub.present})
-                            </button>
-
-                            <button
-                              onClick={() => handleMarkAttendance(sub.id, "absent")}
-                              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
-                                sub.todayStatus === "absent"
-                                  ? "bg-rose-600 text-white border-rose-500 shadow-md shadow-rose-600/20 scale-105"
-                                  : "bg-slate-800 border-slate-700 text-rose-400 hover:bg-rose-500/10"
-                              }`}
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> Absent ({sub.absent})
-                            </button>
-
-                            <button
-                              onClick={() => handleMarkAttendance(sub.id, "cancelled")}
-                              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
-                                sub.todayStatus === "cancelled"
-                                  ? "bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20 scale-105"
-                                  : "bg-slate-800 border-slate-700 text-amber-400 hover:bg-amber-500/10"
-                              }`}
-                            >
-                              <AlertCircle className="w-3.5 h-3.5" /> Cancelled ({sub.cancelled})
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Footer Summary */}
                 <div className="pt-4 mt-4 border-t border-slate-800 text-xs text-slate-400 font-semibold flex flex-wrap justify-between items-center gap-2">
                   <div className="flex items-center gap-4">
                     <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                      <CheckCircle className="w-3.5 h-3.5" /> Attended: {totalPresent}
+                      <CheckCircle className="w-3.5 h-3.5" /> Attended: {totalPresent} ({attendanceStats.overall?.attendedPoints ?? totalPresent} pts)
                     </span>
                     <span className="flex items-center gap-1 text-rose-400 font-bold">
                       <XCircle className="w-3.5 h-3.5" /> Missed: {totalAbsent}
@@ -858,7 +880,7 @@ const handleDeleteTask = async (id) =>{
                   </div>
 
                   <span className="font-extrabold text-slate-100">
-                    Overall Rate: {overallAttendanceRate}%
+                    Weighted Rate: {overallAttendanceRate}%
                   </span>
                 </div>
               </div>
@@ -1234,73 +1256,6 @@ const handleDeleteTask = async (id) =>{
         )}
 
       </main>
-
-      {/* Modal: Add or Edit Subject Class */}
-      {showAddSubjectModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl text-left animate-entrance">
-            <h3 className="font-heading font-extrabold text-xl text-slate-100 mb-4">
-              {editingSubjectId ? "Edit Subject Class" : "Add Subject Class"}
-            </h3>
-
-            <form onSubmit={handleSaveSubject} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-slate-400">Subject Code (e.g. CS 101)</label>
-                <input 
-                  type="text" 
-                  value={subjectCodeInput}
-                  onChange={(e) => setSubjectCodeInput(e.target.value)}
-                  placeholder="CS 101"
-                  required
-                  className="px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-slate-400">Subject Name</label>
-                <input 
-                  type="text" 
-                  value={subjectNameInput}
-                  onChange={(e) => setSubjectNameInput(e.target.value)}
-                  placeholder="Intro to Programming"
-                  required
-                  className="px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-slate-400">Class Schedule Time</label>
-                <input 
-                  type="text" 
-                  value={subjectTimeInput}
-                  onChange={(e) => setSubjectTimeInput(e.target.value)}
-                  placeholder="09:00 AM"
-                  className="px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-brand-purple font-medium"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-4">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setEditingSubjectId(null);
-                    setShowAddSubjectModal(false);
-                  }}
-                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:underline"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="px-5 py-2.5 bg-gradient-to-r from-brand-blue to-brand-purple text-white font-bold text-xs rounded-xl shadow-md"
-                >
-                  {editingSubjectId ? "Update Subject" : "Add Subject"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );

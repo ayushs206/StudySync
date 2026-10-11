@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { updateUserSchema } from '../validators/user.validator.js';
 
 import { sendEmailVerification as sendEmailVerificationMail, sendPasswordResetEmail as sendPasswordResetEmailMail } from '../services/email.js';
+import { syncUserBatch } from '../services/timetable.service.js';
 
 
 export const register = async (req, res) => {
@@ -11,7 +12,7 @@ export const register = async (req, res) => {
             return res.status(400).json({ message: 'Fill the fields' });
         }
 
-        const { first_name, last_name, email, password, username, year_of_study } = req.body;
+        const { first_name, last_name, email, password, username, year_of_study, batch, selectedElectives } = req.body;
         if (typeof email !== 'string' || typeof password !== 'string') {
             return res.status(400).json({ message: 'Invalid input' });
         }
@@ -23,8 +24,17 @@ export const register = async (req, res) => {
         }
 
         const newUser = new User(
-            { first_name, last_name, email, username, password, year_of_study ,batch}
-        )
+            { 
+                first_name, 
+                last_name, 
+                email, 
+                username, 
+                password, 
+                year_of_study,
+                batch: batch || null,
+                selectedElectives: selectedElectives || {}
+            }
+        );
 
         const accessToken = newUser.generateAccessToken();
         const refreshToken = newUser.generateRefreshToken();
@@ -32,6 +42,14 @@ export const register = async (req, res) => {
         newUser.refreshToken = refreshToken;
 
         await newUser.save();
+
+        if (batch) {
+            try {
+                await syncUserBatch(newUser._id, batch, selectedElectives || {});
+            } catch (syncErr) {
+                console.error('Failed to sync initial batch subjects:', syncErr);
+            }
+        }
 
         const emailToken = newUser.emailVerifyToken();
         try {
@@ -166,12 +184,21 @@ export const UpdateUserInfo = async (req, res) => {
             return res.status(400).json({ message: 'No fields provided to update' });
         }
 
-        const { first_name, last_name, year_of_study,batch } = result.data;
+        const { first_name, last_name, year_of_study, batch, selectedElectives } = result.data;
 
         if (first_name !== undefined) user.first_name = first_name;
         if (last_name !== undefined) user.last_name = last_name;
         if (year_of_study !== undefined) user.year_of_study = year_of_study;
-        if (batch !== undefined) user.batch = batch;
+        if (batch !== undefined && batch !== user.batch) {
+            await syncUserBatch(user._id, batch, selectedElectives || {});
+            user.batch = batch;
+            if (selectedElectives !== undefined) user.selectedElectives = selectedElectives;
+        } else if (selectedElectives !== undefined) {
+            user.selectedElectives = selectedElectives;
+            if (user.batch) {
+                await syncUserBatch(user._id, user.batch, selectedElectives);
+            }
+        }
         await user.save();
 
         return res.json({ user: user.toSafeObject() });

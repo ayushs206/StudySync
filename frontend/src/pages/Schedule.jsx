@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import { 
   Calendar as CalendarIcon, 
@@ -13,19 +13,66 @@ import {
   Download,
   AlertCircle,
   Loader2,
-  FileText
+  FileText,
+  BookOpen
 } from "lucide-react";
+import { api } from "../api";
 
 export default function Schedule() {
+  const [userBatch, setUserBatch] = useState(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
+
   // Weekly Schedule Events State
-  const [events, setEvents] = useState([
-    { id: 1, title: "CS 101: Programming", day: "Monday", time: "09:00 AM", duration: "1.5 hrs", room: "Hall B", color: "from-blue-600 to-indigo-600" },
-    { id: 2, title: "ME 201: Robotics Lab", day: "Tuesday", time: "11:30 AM", duration: "2 hrs", room: "Lab 4", color: "from-purple-600 to-pink-600" },
-    { id: 3, title: "CS 101: Programming", day: "Wednesday", time: "09:00 AM", duration: "1.5 hrs", room: "Hall B", color: "from-blue-600 to-indigo-600" },
-    { id: 4, title: "PH 105: Physics", day: "Wednesday", time: "02:00 PM", duration: "1.5 hrs", room: "Sci 304", color: "from-amber-500 to-orange-600" },
-    { id: 5, title: "ME 201: Robotics Lab", day: "Thursday", time: "11:30 AM", duration: "2 hrs", room: "Lab 4", color: "from-purple-600 to-pink-600" },
-    { id: 6, title: "MA 102: Calculus II", day: "Friday", time: "02:00 PM", duration: "1.5 hrs", room: "Math 102", color: "from-emerald-600 to-teal-600" }
-  ]);
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    async function loadSchedule() {
+      setLoadingSchedule(true);
+      try {
+        const res = await api.getWeeklyTimetable();
+        if (res && res.weeklySchedule) {
+          setUserBatch(res.batch);
+          const colorPalette = [
+            "from-blue-600 to-indigo-600",
+            "from-purple-600 to-pink-600",
+            "from-emerald-600 to-teal-600",
+            "from-amber-500 to-orange-600",
+            "from-rose-600 to-red-600",
+            "from-cyan-600 to-blue-600"
+          ];
+          const colorMap = {};
+          let colorIdx = 0;
+          const mapped = [];
+
+          for (const [dayName, slots] of Object.entries(res.weeklySchedule)) {
+            if (Array.isArray(slots)) {
+              for (const s of slots) {
+                if (!colorMap[s.subject_code]) {
+                  colorMap[s.subject_code] = colorPalette[colorIdx % colorPalette.length];
+                  colorIdx++;
+                }
+                mapped.push({
+                  id: s.slotId,
+                  title: `${s.subject_code}: ${s.subject_name}`,
+                  day: s.day,
+                  time: s.time,
+                  duration: s.type || "Class",
+                  room: s.location || "Room",
+                  color: colorMap[s.subject_code]
+                });
+              }
+            }
+          }
+          setEvents(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load batch schedule:", err);
+      } finally {
+        setLoadingSchedule(false);
+      }
+    }
+    loadSchedule();
+  }, []);
 
   // Modal & File Upload States
   const [showAddModal, setShowAddModal] = useState(false);
@@ -155,13 +202,20 @@ export default function Schedule() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-slate-800">
         <div>
-          <h1 className="font-heading font-extrabold text-3xl text-slate-100 tracking-tight flex items-center gap-3">
-            <CalendarIcon className="w-8 h-8 text-brand-purple" />
-            WEEKLY CLASS SCHEDULE MAKER
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-heading font-extrabold text-3xl text-slate-100 tracking-tight flex items-center gap-3">
+              <CalendarIcon className="w-8 h-8 text-brand-purple" />
+              WEEKLY CLASS SCHEDULE
+            </h1>
+            {userBatch && (
+              <span className="px-3 py-1 bg-brand-purple/20 text-brand-purple border border-brand-purple/30 rounded-xl text-xs font-bold">
+                Batch {userBatch}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5 text-brand-purple" />
-            Build your timetable manually or upload an Excel sheet / Picture of your class schedule to arrange automatically
+            {userBatch ? `Dynamic schedule loaded for Batch ${userBatch}` : "Build your timetable or select your batch in Settings"}
           </p>
         </div>
 

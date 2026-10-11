@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "../components/DashboardLayout";
 import { 
   BookMarked, 
@@ -8,106 +8,122 @@ import {
   ExternalLink, 
   CheckCircle, 
   FileText, 
-  Sparkles,
-  Search,
-  Trash2
+  Sparkles, 
+  Search, 
+  Trash2,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
+import { api } from "../api";
 
 export default function Classes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-
-  const [classList, setClassList] = useState([
-    {
-      id: 1,
-      code: "CS 101",
-      name: "Intro to Computer Programming",
-      instructor: "Dr. Alan Turing",
-      room: "Hall B / Online Zoom",
-      schedule: "Mon, Wed • 09:00 AM",
-      progress: 75,
-      color: "from-blue-600 to-indigo-600",
-      accent: "text-blue-400",
-      bgAccent: "bg-blue-500/10",
-      syllabus: ["Variables & Data Types", "Control Loops", "Object Oriented Design", "Data Structures"],
-      link: "https://zoom.us/j/demo101"
-    },
-    {
-      id: 2,
-      code: "ME 201",
-      name: "Robotics & Kinematics Laboratory",
-      instructor: "Prof. Sarah Connor",
-      room: "Engineering Lab 4",
-      schedule: "Tue, Thu • 11:30 AM",
-      progress: 60,
-      color: "from-purple-600 to-pink-600",
-      accent: "text-purple-400",
-      bgAccent: "bg-purple-500/10",
-      syllabus: ["Matrix Rotations", "Actuator Mechanics", "Microcontroller I2C", "CAD Arms"],
-      link: "https://zoom.us/j/demo201"
-    },
-    {
-      id: 3,
-      code: "MA 102",
-      name: "Calculus & Analysis II",
-      instructor: "Dr. Gottfried Leibniz",
-      room: "Math Auditorium 102",
-      schedule: "Mon, Fri • 02:00 PM",
-      progress: 45,
-      color: "from-emerald-600 to-teal-600",
-      accent: "text-emerald-400",
-      bgAccent: "bg-emerald-500/10",
-      syllabus: ["Integration by Parts", "Taylor Series", "Differential Equations", "Vector Calculus"],
-      link: "https://zoom.us/j/demo102"
-    },
-    {
-      id: 4,
-      code: "PH 105",
-      name: "Applied Physics & Thermodynamics",
-      instructor: "Prof. Richard Feynman",
-      room: "Science Center 304",
-      schedule: "Wed, Fri • 10:00 AM",
-      progress: 80,
-      color: "from-amber-500 to-orange-600",
-      accent: "text-amber-400",
-      bgAccent: "bg-amber-500/10",
-      syllabus: ["Laws of Thermodynamics", "Entropy & Heat Engines", "Quantum Mechanics Intro"],
-      link: "https://zoom.us/j/demo105"
-    }
-  ]);
+  const [classList, setClassList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userBatch, setUserBatch] = useState(null);
 
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
-  const [newInstructor, setNewInstructor] = useState("");
-  const [newSchedule, setNewSchedule] = useState("");
 
-  const handleAddClass = (e) => {
-    e.preventDefault();
-    if (!newCode || !newName) return;
-    const newClass = {
-      id: Date.now(),
-      code: newCode,
-      name: newName,
-      instructor: newInstructor || "Staff Instructor",
-      room: "Lecture Hall A",
-      schedule: newSchedule || "Mon, Wed • 10:00 AM",
-      progress: 10,
-      color: "from-brand-blue to-brand-purple",
-      accent: "text-purple-400",
-      bgAccent: "bg-purple-500/10",
-      syllabus: ["Course Introduction", "Midterm Prep", "Final Project"],
-      link: "#"
-    };
-    setClassList([newClass, ...classList]);
-    setNewCode("");
-    setNewName("");
-    setNewInstructor("");
-    setNewSchedule("");
-    setShowAddModal(false);
+  const colorPalette = [
+    { color: "from-blue-600 to-indigo-600", accent: "text-blue-400", bgAccent: "bg-blue-500/10" },
+    { color: "from-purple-600 to-pink-600", accent: "text-purple-400", bgAccent: "bg-purple-500/10" },
+    { color: "from-emerald-600 to-teal-600", accent: "text-emerald-400", bgAccent: "bg-emerald-500/10" },
+    { color: "from-amber-500 to-orange-600", accent: "text-amber-400", bgAccent: "bg-amber-500/10" },
+    { color: "from-rose-600 to-red-600", accent: "text-rose-400", bgAccent: "bg-rose-500/10" },
+    { color: "from-cyan-600 to-blue-600", accent: "text-cyan-400", bgAccent: "bg-cyan-500/10" }
+  ];
+
+  const fetchClassesAndStats = async () => {
+    setLoading(true);
+    try {
+      const userStr = localStorage.getItem("studysync_user");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        setUserBatch(u.batch);
+      }
+
+      const [subRes, statsRes] = await Promise.all([
+        api.getSubjects().catch(() => ({ subjects: [] })),
+        api.getAttendanceStats().catch(() => ({ subjects: [] }))
+      ]);
+
+      const statsMap = {};
+      if (statsRes?.subjects) {
+        for (const s of statsRes.subjects) {
+          statsMap[s.code] = s;
+        }
+      }
+
+      if (subRes?.subjects) {
+        const mapped = subRes.subjects.map((s, idx) => {
+          const colorTheme = colorPalette[idx % colorPalette.length];
+          const st = statsMap[s.subject_code] || {
+            present: 0,
+            absent: 0,
+            cancelled: 0,
+            conducted: 0,
+            attendedPoints: 0,
+            conductedPoints: 0,
+            percentage: 100
+          };
+          return {
+            id: s._id,
+            code: s.subject_code,
+            name: s.subject_name,
+            instructor: "Course Faculty",
+            room: "Academic Block",
+            schedule: "Batch Scheduled",
+            progress: st.percentage,
+            present: st.present,
+            conducted: st.conducted,
+            attendedPoints: st.attendedPoints ?? st.present,
+            conductedPoints: st.conductedPoints ?? st.conducted,
+            color: colorTheme.color,
+            accent: colorTheme.accent,
+            bgAccent: colorTheme.bgAccent,
+            syllabus: ["Core Modules", "Assignments", "Exams & Attendance"],
+            link: "#"
+          };
+        });
+        setClassList(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to load classes:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteClass = (id) => {
-    setClassList(classList.filter(c => c.id !== id));
+  useEffect(() => {
+    fetchClassesAndStats();
+  }, []);
+
+  const handleAddClass = async (e) => {
+    e.preventDefault();
+    if (!newCode || !newName) return;
+    try {
+      await api.createSubject({
+        subject_code: newCode.trim(),
+        subject_name: newName.trim()
+      });
+      setNewCode("");
+      setNewName("");
+      setShowAddModal(false);
+      fetchClassesAndStats();
+    } catch (err) {
+      console.error("Failed to add subject:", err);
+    }
+  };
+
+  const handleDeleteClass = async (id) => {
+    try {
+      await api.deleteSubject(id);
+      setClassList(classList.filter(c => c.id !== id));
+    } catch (err) {
+      console.error("Failed to delete subject:", err);
+    }
   };
 
   const filteredClasses = classList.filter(c => 
@@ -121,13 +137,20 @@ export default function Classes() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-slate-800">
         <div>
-          <h1 className="font-heading font-extrabold text-3xl text-slate-100 tracking-tight flex items-center gap-3">
-            <BookMarked className="w-8 h-8 text-brand-purple" />
-            MY ENROLLED CLASSES
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-heading font-extrabold text-3xl text-slate-100 tracking-tight flex items-center gap-3">
+              <BookMarked className="w-8 h-8 text-brand-purple" />
+              MY ENROLLED CLASSES
+            </h1>
+            {userBatch && (
+              <span className="px-3 py-1 bg-brand-purple/20 text-brand-purple border border-brand-purple/30 rounded-xl text-xs font-bold">
+                Batch {userBatch}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5 text-brand-purple" />
-            Manage active courses, view instructors, and track syllabus progress
+            {userBatch ? `Batch ${userBatch} courses and attendance rates` : "Manage active courses and track attendance progress"}
           </p>
         </div>
 
@@ -207,10 +230,10 @@ export default function Classes() {
               </div>
             </div>
 
-            {/* Bottom Progress & Zoom Link */}
+            {/* Bottom Progress */}
             <div className="pt-4 border-t border-slate-800/80 flex flex-col gap-3">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-semibold text-slate-400">Syllabus Completed</span>
+                <span className="font-semibold text-slate-400">Attendance Rate</span>
                 <span className="font-bold text-slate-100">{cls.progress}%</span>
               </div>
 
@@ -221,8 +244,10 @@ export default function Classes() {
                 />
               </div>
 
-              <div className="flex justify-between items-center mt-2">
-               
+              <div className="flex justify-between items-center mt-2 text-xs">
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {cls.attendedPoints ?? cls.present} / {cls.conductedPoints ?? cls.conducted} pts ({cls.present || 0} / {cls.conducted || 0} classes)
+                </span>
                 <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                   Enrolled
                 </span>
@@ -231,6 +256,23 @@ export default function Classes() {
           </div>
         ))}
       </div>
+
+      {loading && (
+        <div className="py-16 flex flex-col items-center justify-center text-slate-400 text-xs">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-purple mb-3" />
+          Loading enrolled courses...
+        </div>
+      )}
+
+      {!loading && filteredClasses.length === 0 && (
+        <div className="p-8 glass-card border border-slate-800 rounded-3xl text-center flex flex-col items-center justify-center gap-2">
+          <BookMarked className="w-10 h-10 text-brand-purple opacity-50" />
+          <h3 className="font-heading font-bold text-base text-slate-100">No Enrolled Classes Found</h3>
+          <p className="text-xs text-slate-400 max-w-sm">
+            {userBatch ? `No courses found matching "${searchQuery}".` : "You haven't selected an academic batch yet. Go to Settings or Dashboard to select your batch and auto-load all classes."}
+          </p>
+        </div>
+      )}
 
       {/* Add Class Modal */}
       {showAddModal && (
