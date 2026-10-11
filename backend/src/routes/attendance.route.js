@@ -1,11 +1,30 @@
-import {Router} from 'express';
-import{getTimetable, markAttendance, calculateAttendance} from '../controllers/attendance.controller.js';
+import { Router } from 'express';
+import {
+    getBatches,
+    getElectives,
+    selectBatch,
+    getTimetable,
+    getWeeklyTimetable,
+    markAttendance,
+    calculateAttendance
+} from '../controllers/attendance.controller.js';
 import { validateAttendance } from '../middlewares/validateAttendance.js';
-const router=Router();
+import { verifyJWT } from '../middlewares/auth.js';
 
-router.get('/attendance/timetable/:date',getTimetable);
-router.post('/attendance',
-    validateAttendance,
-    markAttendance);
-router.get('/attendance/:date',calculateAttendance);
+const router = Router();
+
+// Public: allows unauthenticated visitors to get batch list during signup
+router.get('/batches', getBatches);
+
+// Protected routes requiring authentication
+router.use(verifyJWT);
+router.get('/weekly', getWeeklyTimetable);
+router.get('/electives', getElectives);
+router.post('/batch', selectBatch);
+router.get('/timetable', getTimetable);
+router.get('/timetable/:date', getTimetable);
+router.post('/mark', validateAttendance, markAttendance);
+router.post('/', validateAttendance, markAttendance);
+router.get('/stats', calculateAttendance);
+
 export default router;

@@ -131,14 +131,50 @@ export const api = {
   deleteNote: (noteId) => request(`/notes/${noteId}`, {
     method: 'DELETE',
   }),
-  getTimetable:(date)=>request(`attendance/timetable/${date}`,{
-    method:'GET',
+  // TIMETABLE & ATTENDANCE
+  getBatches: () => request('/attendance/batches', {
+    method: 'GET',
   }),
-  markAttendance:(attendanceData)=>request('attendance',{
-    method:'POST',
+  getElectives: (batch) => request(`/attendance/electives${batch ? `?batch=${encodeURIComponent(batch)}` : ''}`, {
+    method: 'GET',
+  }),
+  selectBatch: (batchData) => request('/attendance/batch', {
+    method: 'POST',
+    body: JSON.stringify(batchData),
+  }),
+  getTodayTimetable: (date) => request(`/attendance/timetable${date ? `/${date}` : ''}`, {
+    method: 'GET',
+  }),
+  getWeeklyTimetable: () => request('/attendance/weekly', {
+    method: 'GET',
+  }),
+  markAttendance: (attendanceData) => request('/attendance/mark', {
+    method: 'POST',
     body: JSON.stringify(attendanceData),
   }),
-  getAttendanceStats:(date)=>request(`attendance/${date}`,{
-    method:'GET',
+  getAttendanceStats: () => request('/attendance/stats', {
+    method: 'GET',
+  }),
+
+  // SUBJECTS
+  getSubjects: () => request('/subjects', {
+    method: 'GET',
+  }),
+  createSubject: (subjectData) => request('/subjects', {
+    method: 'POST',
+    body: JSON.stringify(subjectData),
+  }),
+  updateSubject: (id, subjectData) => request(`/subjects/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(subjectData),
+  }),
+  deleteSubject: (id) => request(`/subjects/${id}`, {
+    method: 'DELETE',
+  }),
+
+  // USER
+  updateUser: (userData) => request('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(userData),
   }),
 };

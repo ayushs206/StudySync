@@ -46,6 +46,9 @@ export default function Signup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [yearOfStudy, setYearOfStudy] = useState("1");
+  const [batch, setBatch] = useState("");
+  const [batches, setBatches] = useState([]);
+  const [loadingBatches, setLoadingBatches] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,6 +60,23 @@ export default function Signup() {
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
+
+  useEffect(() => {
+    async function loadBatches() {
+      setLoadingBatches(true);
+      try {
+        const res = await api.getBatches();
+        if (res && res.batches) {
+          setBatches(res.batches);
+        }
+      } catch (err) {
+        console.error("Could not load batches:", err);
+      } finally {
+        setLoadingBatches(false);
+      }
+    }
+    loadBatches();
+  }, []);
 
   const validateEmail = (val) => {
     return /^\S+@\S+\.\S+$/.test(val);
@@ -91,6 +111,10 @@ export default function Signup() {
       tempErrors.password = "Password must be at least 8 characters long.";
     }
 
+    if (!batch) {
+      tempErrors.batch = "Please select your batch.";
+    }
+
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
@@ -113,7 +137,8 @@ export default function Signup() {
         email: email.trim().toLowerCase(),
         username: username.trim(),
         password: password,
-        year_of_study: parseInt(yearOfStudy, 10)
+        year_of_study: parseInt(yearOfStudy, 10),
+        batch: batch.trim()
       };
 
       // Real REST API call to Express backend
@@ -378,6 +403,46 @@ export default function Signup() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Batch Selection */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+                      Select Your Batch
+                    </label>
+                    <span className="text-[10px] text-brand-purple font-semibold">
+                      (Sets your timetable & subjects)
+                    </span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <BookOpen className="w-4.5 h-4.5 text-slate-400 absolute left-4 z-10" />
+                    <select
+                      value={batch}
+                      onChange={(e) => {
+                        setBatch(e.target.value);
+                        if (e.target.value) setErrors(prev => ({ ...prev, batch: "" }));
+                      }}
+                      className={`w-full pl-11 pr-10 py-2.5 bg-slate-800/60 border rounded-2xl text-white text-sm focus:outline-none focus:border-brand-purple focus:bg-slate-800 transition-all shadow-sm appearance-none cursor-pointer font-medium ${
+                        errors.batch ? "border-rose-500 focus:border-rose-500" : "border-slate-700/80"
+                      }`}
+                    >
+                      <option value="" disabled className="bg-slate-900 text-slate-400">
+                        {loadingBatches ? "Loading available batches..." : "-- Choose your batch (e.g. 1A11, 1G11) --"}
+                      </option>
+                      {batches.map((b) => (
+                        <option key={b} value={b} className="bg-slate-900 text-white">
+                          Batch {b}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-4 flex items-center">
+                      <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                  {errors.batch && <span className="text-[10px] text-rose-500 font-bold mt-1 pl-1">{errors.batch}</span>}
                 </div>
 
                 {/* Password */}

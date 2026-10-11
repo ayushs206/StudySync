@@ -10,6 +10,8 @@ const UserSchema = new Schema({
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     year_of_study: { type: Number, required: false },
+    batch: { type: String, default: null, trim: true },
+    selectedElectives: { type: Schema.Types.Mixed, default: {} },
     isVerified: { type: Boolean, default: false },
     refreshToken: { type: String, required: false },
     /* We can store the hashed version of the token in the database for security reasons. When a user logs out, we can simply remove the refresh token from the database, making it invalid for future use. */
@@ -32,6 +34,8 @@ UserSchema.methods.toSafeObject = function () {
         username: this.username,
         email: this.email,
         year_of_study: this.year_of_study,
+        batch: this.batch,
+        selectedElectives: this.selectedElectives || {},
         isVerified: this.isVerified,
     };
 };

@@ -8,11 +8,8 @@ export function validateAttendance(req, res, next) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
             return res.status(400).json({message: "Invalid date format. Use YYYY-MM-DD"});
     }
-    if(!status){
-        return res.status(400).json({ error: 'Status is required' });
-    }
-    if(status !== 'present' && status !== 'absent' && status !== 'cancelled'){
-        return res.status(400).json({ error: 'Status must be either present, absent or cancelled' });
+    if (status !== undefined && status !== null && status !== '' && !['present', 'absent', 'cancelled'].includes(status)) {
+        return res.status(400).json({ error: 'Status must be either present, absent, cancelled or null' });
     }
     if(!subjectCode){
         return res.status(400).json({ error: 'Subject code is required' });
