@@ -131,4 +131,14 @@ export const api = {
   deleteNote: (noteId) => request(`/notes/${noteId}`, {
     method: 'DELETE',
   }),
+  getTimetable:(date)=>request(`attendance/timetable/${date}`,{
+    method:'GET',
+  }),
+  markAttendance:(attendanceData)=>request('attendance',{
+    method:'POST',
+    body: JSON.stringify(attendanceData),
+  }),
+  getAttendanceStats:(date)=>request(`attendance/${date}`,{
+    method:'GET',
+  }),
 };
