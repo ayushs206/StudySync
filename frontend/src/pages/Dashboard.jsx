@@ -172,24 +172,34 @@ export default function Dashboard() {
   },[]);
 
 
-  // --- 4. KEEP CALENDAR REMINDERS ---
-  const [reminders, setReminders] = useState([
-    { id: 1, title: "Robot Fest Exhibit", date: "May 22", time: "13:00", reminderActive: true },
-    { id: 2, title: "Webinar on CAD Modeling", date: "May 25", time: "15:00", reminderActive: false },
-    { id: 3, title: "Calculus Quiz 3", date: "May 19", time: "10:00", reminderActive: true }
-  ]);
+  // --- 4. KEEP CALENDAR REMINDERS (REAL /events API — Option A: no mute/unmute toggle) ---
+
+  const [reminders, setReminders] = useState([]);
+  const [loadingReminders, setLoadingReminders] = useState(true);
+  const [remindersError, setRemindersError] = useState(null);
+
   const [newReminderTitle, setNewReminderTitle] = useState("");
-  const [newReminderTime, setNewReminderTime] = useState("");
-  const [newReminderDate, setNewReminderDate] = useState("May 18");
+  const [newReminderStart, setNewReminderStart] = useState("");   // datetime-local string
+  const [newReminderEnd, setNewReminderEnd] = useState("");       // optional
+  const [newReminderLocation, setNewReminderLocation] = useState(""); // optional
   const [showReminderForm, setShowReminderForm] = useState(false);
 
+  async function fetchEvents() {
+    setLoadingReminders(true);
+    setRemindersError(null);
+    try {
+      const res = await api.getEvents();
+      setReminders(res.events || []);
+    } catch (err) {
+      setRemindersError(err.message || "Failed to load reminders");
+    } finally {
+      setLoadingReminders(false);
+    }
+  }
+  useEffect(() => { fetchEvents(); }, []);
+
   // Admin stats
-  const [systemUsers, setSystemUsers] = useState([
-    { id: 1, name: "Sophia Tompson", email: "sophia@studysync.edu", username: "sophia_t", year: "3rd Year", verified: false },
-    { id: 2, name: "Alex Carter", email: "alex.c@studysync.edu", username: "alex_c", year: "1st Year", verified: true },
-    { id: 3, name: "Marcus Aurelius", email: "marcus@studysync.edu", username: "philosopher", year: "4th Year", verified: true },
-    { id: 4, name: "Zoe Jenkins", email: "zoe@studysync.edu", username: "zoe_codes", year: "2nd Year", verified: false }
-  ]);
+ 
   
   const [serverStats, setServerStats] = useState({
     cpuLoad: 24,
@@ -390,21 +400,38 @@ const handleDeleteTask = async (id) =>{
   const completedTasksCount = tasks.filter(t => t.status==='completed').length;
   const taskCompletionRate = tasks.length > 0 ? Math.round((completedTasksCount / tasks.length) * 100) : 0;
 
-  // REMINDERS ACTIONS
-  const handleAddReminder = (e) => {
+  // REMINDERS ACTIONS (real backend — title + event_start required, event_end/location optional)
+  const handleAddReminder = async (e) => {
     e.preventDefault();
-    if (!newReminderTitle || !newReminderTime) return;
-    setReminders([...reminders, { id: Date.now(), title: newReminderTitle, time: newReminderTime, date: newReminderDate, reminderActive: true }]);
-    setNewReminderTitle("");
-    setNewReminderTime("");
-    setShowReminderForm(false);
+    if (!newReminderTitle || !newReminderStart) return;
+    try {
+      const res = await api.createEvent({
+        title: newReminderTitle,
+        event_start: new Date(newReminderStart).toISOString(),
+        event_end: newReminderEnd ? new Date(newReminderEnd).toISOString() : undefined,
+        location: newReminderLocation || undefined,
+      });
+      setReminders(prev => [...prev, res.event]);
+      setNewReminderTitle("");
+      setNewReminderStart("");
+      setNewReminderEnd("");
+      setNewReminderLocation("");
+      setShowReminderForm(false);
+    } catch (err) {
+      setRemindersError(err.message || "Failed to add reminder.");
+    }
   };
 
-  const handleToggleReminder = (id) => {
-    setReminders(reminders.map(r => r.id === id ? { ...r, reminderActive: !r.reminderActive } : r));
+  const handleDeleteReminder = async (id) => {
+    const prevReminders = reminders;
+    setReminders(prev => prev.filter(r => r._id !== id));
+    try {
+      await api.deleteEvent(id);
+    } catch (err) {
+      setReminders(prevReminders);
+      setRemindersError(err.message || "Failed to delete reminder.");
+    }
   };
-  const handleDeleteReminder = (id) => setReminders(reminders.filter(r => r.id !== id));
-  const activeRemindersCount = reminders.filter(r => r.reminderActive).length;
 
   const handleLogout = async () => {
     try { await api.logout(); } catch (e) {}
@@ -483,12 +510,6 @@ const handleDeleteTask = async (id) =>{
               <Layers className="w-4 h-4" />
               <span>Dashboard</span>
             </Link>
-            
-            <Link to="/classes" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-brand-purple/10 hover:text-purple-400 font-medium text-sm transition-colors w-full">
-              <BookMarked className="w-4 h-4" />
-              <span>My Classes</span>
-            </Link>
-
             
 
             <Link to="/schedule" className="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-brand-purple/10 hover:text-purple-400 font-medium text-sm transition-colors w-full">
@@ -1070,7 +1091,7 @@ const handleDeleteTask = async (id) =>{
 
               </div>
 
-              {/* WIDGET 4: KEEP CALENDAR REMINDERS */}
+              {/* WIDGET 4: KEEP CALENDAR REMINDERS (real /events — Option A, no mute toggle) */}
               <div className="glass-card p-6 sm:p-7 rounded-3xl border border-slate-800/80 text-left hover:-translate-y-0.5 transition-all">
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-2.5">
@@ -1091,9 +1112,13 @@ const handleDeleteTask = async (id) =>{
                   </button>
                 </div>
 
+                {remindersError && (
+                  <p className="text-[10px] text-rose-400 font-semibold mb-2">{remindersError}</p>
+                )}
+
                 {showReminderForm && (
-                  <form onSubmit={handleAddReminder} className="mb-6 p-4 bg-slate-900/80 border border-slate-800 rounded-2xl grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fade-in">
-                    <div className="flex flex-col gap-1">
+                  <form onSubmit={handleAddReminder} className="mb-6 p-4 bg-slate-900/80 border border-slate-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in">
+                    <div className="flex flex-col gap-1 sm:col-span-2">
                       <label className="text-[10px] font-bold text-slate-400 uppercase">Event Title</label>
                       <input 
                         type="text" 
@@ -1104,80 +1129,83 @@ const handleDeleteTask = async (id) =>{
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Time</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 10:00 AM" 
-                        value={newReminderTime}
-                        onChange={(e) => setNewReminderTime(e.target.value)}
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Starts</label>
+                      <input
+                        type="datetime-local"
+                        value={newReminderStart}
+                        onChange={(e) => setNewReminderStart(e.target.value)}
                         className="px-3 py-2 text-xs bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-brand-purple text-slate-100 font-medium"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Date</label>
-                      <select 
-                        value={newReminderDate}
-                        onChange={(e) => setNewReminderDate(e.target.value)}
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Ends (optional)</label>
+                      <input
+                        type="datetime-local"
+                        value={newReminderEnd}
+                        onChange={(e) => setNewReminderEnd(e.target.value)}
                         className="px-3 py-2 text-xs bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-brand-purple text-slate-100 font-medium"
-                      >
-                        <option value="May 18">May 18</option>
-                        <option value="May 19">May 19</option>
-                        <option value="May 20">May 20</option>
-                        <option value="May 21">May 21</option>
-                        <option value="May 22">May 22</option>
-                        <option value="May 25">May 25</option>
-                      </select>
+                      />
                     </div>
-                    <div className="sm:col-span-3 flex justify-end gap-2 mt-2">
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Location (optional)</label>
+                      <input
+                        type="text"
+                        placeholder="Room / link"
+                        value={newReminderLocation}
+                        onChange={(e) => setNewReminderLocation(e.target.value)}
+                        className="px-3 py-2 text-xs bg-slate-800 border border-slate-700 rounded-xl focus:outline-none focus:border-brand-purple text-slate-100 font-medium"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 flex justify-end gap-2 mt-2">
                       <button type="button" onClick={() => setShowReminderForm(false)} className="text-xs font-bold text-slate-500 hover:underline">Cancel</button>
                       <button type="submit" className="text-xs font-bold px-4 py-1.5 bg-brand-purple text-white rounded-xl">Add Event</button>
                     </div>
                   </form>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {reminders.map((rem) => (
-                    <div 
-                      key={rem.id} 
-                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between min-h-[120px] ${
-                        rem.reminderActive 
-                          ? "bg-brand-purple/15 border-brand-purple/20 shadow-sm" 
-                          : "border-slate-800/50 bg-slate-900/20"
-                      }`}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="font-heading font-extrabold text-xs text-slate-100 leading-tight block">{rem.title}</span>
-                          <div className="flex items-center gap-1">
+                {loadingReminders ? (
+                  <div className="py-8 flex items-center justify-center text-slate-400 text-xs">
+                    <Loader2 className="w-5 h-5 animate-spin text-brand-purple mr-2" /> Loading reminders...
+                  </div>
+                ) : reminders.length === 0 ? (
+                  <div className="p-6 bg-slate-900/60 rounded-2xl border border-slate-800 text-center text-slate-400 text-xs">
+                    No reminders yet — add one above.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {reminders.map((rem) => (
+                      <div 
+                        key={rem._id} 
+                        className="p-4 rounded-2xl border border-brand-purple/20 bg-brand-purple/15 shadow-sm transition-all flex flex-col justify-between min-h-[120px]"
+                      >
+                        <div>
+                          <div className="flex justify-between items-start gap-2">
+                            <span className="font-heading font-extrabold text-xs text-slate-100 leading-tight block">{rem.title}</span>
                             <button 
-                              onClick={() => handleToggleReminder(rem.id)}
-                              className={`p-1 rounded-lg ${rem.reminderActive ? "text-brand-purple bg-brand-purple/10" : "text-slate-400 bg-slate-800"}`}
-                              title="Toggle Reminder Notification"
-                            >
-                              <Bell className={`w-3.5 h-3.5 ${rem.reminderActive ? "fill-brand-purple" : ""}`} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteReminder(rem.id)}
+                              onClick={() => handleDeleteReminder(rem._id)}
                               className="p-1 rounded-lg text-slate-500 hover:text-rose-400"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-1.5 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-brand-purple" />
+                            {new Date(rem.event_start).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                          </span>
+                          {rem.location && rem.location !== "N/A" && (
+                            <span className="text-[9px] text-slate-500 block mt-0.5">📍 {rem.location}</span>
+                          )}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-bold block mt-1.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-brand-purple" /> {rem.time}
-                        </span>
-                      </div>
 
-                      <div className="flex items-center justify-between mt-4 pt-2 border-t border-slate-800">
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">{rem.date}</span>
-                        <span className={`text-[9px] font-bold ${rem.reminderActive ? "text-purple-400" : "text-slate-400"}`}>
-                          {rem.reminderActive ? "Reminder Set" : "Muted"}
-                        </span>
+                        <div className="flex items-center justify-between mt-4 pt-2 border-t border-slate-800">
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300">
+                            {new Date(rem.event_start).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
             </div>
@@ -1239,11 +1267,11 @@ const handleDeleteTask = async (id) =>{
                 <div className="mt-8 pt-6 border-t border-slate-800 flex flex-col gap-4">
                   <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-xs flex flex-col gap-2">
                     <div className="flex justify-between font-bold text-slate-400">
-                      <span>Active Reminders</span>
-                      <span className="text-slate-200">{activeRemindersCount} Alerts Enabled</span>
+                      <span>Upcoming Reminders</span>
+                      <span className="text-slate-200">{reminders.length} Scheduled</span>
                     </div>
                     <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                      <div className="bg-brand-purple h-full rounded-full" style={{ width: `${Math.min(100, activeRemindersCount * 25)}%` }} />
+                      <div className="bg-brand-purple h-full rounded-full" style={{ width: `${Math.min(100, reminders.length * 25)}%` }} />
                     </div>
                   </div>
                 </div>

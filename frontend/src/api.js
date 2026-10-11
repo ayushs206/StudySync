@@ -177,4 +177,22 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify(userData),
   }),
+  createEvent:(eventData)=>request('/events',{
+    method:'POST',
+    body: JSON.stringify(eventData),
+  }),
+  getEvents:()=>request('/events',{
+    method:'GET',
+  }),
+  getEventById:(eventId)=>request(`/events/${eventId}`,{
+    method:'GET',
+  }),
+  updateEvent:(eventId,eventData)=>request(`/events/${eventId}`,{
+    method:'PATCH',
+    body: JSON.stringify(eventData),
+  }),
+  deleteEvent:(eventId)=>request(`/events/${eventId}`,{
+    method:'DELETE',
+  }),
+  
 };
